@@ -14,4 +14,4 @@ ditto -c -k --keepParent build/Yaping.app "$ZIP"
 rm -rf build/Yaping.app   # don't leave a second copy around to be launched by accident
 
 echo "✓ $ZIP ($(du -h "$ZIP" | cut -f1))"
-echo "  Publish it with: gh release create v$VERSION $ZIP --title \"Yaping $VERSION\" --notes-file docs/RELEASE_NOTES.md"
+echo "  Publish it with: gh release create yaping-v$VERSION $ZIP --title \"Yaping $VERSION\" --notes-file docs/RELEASE_NOTES.md"

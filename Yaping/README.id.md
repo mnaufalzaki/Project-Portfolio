@@ -13,7 +13,7 @@ Tekan <kbd>⌘</kbd><kbd>⌥</kbd>, bicara seperti biasa, tekan lagi, dan teks y
 ![Apple Silicon](https://img.shields.io/badge/Apple%20Silicon-optimized-555555)
 ![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)
 
-**[⬇️ Download untuk Mac](https://github.com/mnaufalzaki/Yaping/releases/latest)** · [Cerita di baliknya](docs/JOURNEY.id.md)
+**[⬇️ Download untuk Mac](https://github.com/mnaufalzaki/Project-Portfolio/releases/tag/yaping-v1.0)** · [Cerita di baliknya](docs/JOURNEY.id.md)
 
 🇬🇧 [English](README.md) · 🇮🇩 Bahasa Indonesia
 
@@ -44,7 +44,7 @@ Kamu bebas memilih di mana audiomu diproses: Google Gemini untuk hasil paling ra
 
 ### Pilihan A: Download (disarankan)
 
-1. Download **`Yaping-1.0.zip`** dari [rilis terbaru](https://github.com/mnaufalzaki/Yaping/releases/latest), ekstrak, lalu seret **Yaping.app** ke folder **Applications**.
+1. Download **`Yaping-1.0.zip`** dari [halaman rilis](https://github.com/mnaufalzaki/Project-Portfolio/releases/tag/yaping-v1.0), ekstrak, lalu seret **Yaping.app** ke folder **Applications**.
 2. Buka Yaping. macOS akan memperingatkan bahwa aplikasi ini *"could not verify"*, karena aplikasi open source gratis tidak dinotarisasi oleh Apple. Buka **System Settings › Privacy & Security**, scroll ke bawah, lalu klik **Open Anyway**. Langkah ini cukup sekali.
 
 ### Pilihan B: Build dari source
@@ -52,8 +52,8 @@ Kamu bebas memilih di mana audiomu diproses: Google Gemini untuk hasil paling ra
 Butuh Xcode Command Line Tools (`xcode-select --install`). Aplikasi Xcode lengkap tidak diperlukan.
 
 ```bash
-git clone https://github.com/mnaufalzaki/Yaping.git
-cd Yaping
+git clone https://github.com/mnaufalzaki/Project-Portfolio.git
+cd Project-Portfolio/Yaping
 ./build.sh install
 ```
 

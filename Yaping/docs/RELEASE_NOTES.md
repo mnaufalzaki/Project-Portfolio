@@ -16,4 +16,4 @@ Free, open-source voice dictation for macOS. Press ⌘⌥, speak, press again, a
 
 Requires an Apple Silicon Mac (M1 or later) running macOS 14 or later.
 
-Read how it was built and tested: [The story behind Yaping](https://github.com/mnaufalzaki/Yaping/blob/main/docs/JOURNEY.md).
+Read how it was built and tested: [The story behind Yaping](https://github.com/mnaufalzaki/Project-Portfolio/blob/main/Yaping/docs/JOURNEY.md).

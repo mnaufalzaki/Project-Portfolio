@@ -13,7 +13,7 @@ Press <kbd>⌘</kbd><kbd>⌥</kbd>, speak naturally, press again, and clean, pun
 ![Apple Silicon](https://img.shields.io/badge/Apple%20Silicon-optimized-555555)
 ![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)
 
-**[⬇️ Download for Mac](https://github.com/mnaufalzaki/Yaping/releases/latest)** · [The story behind it](docs/JOURNEY.md)
+**[⬇️ Download for Mac](https://github.com/mnaufalzaki/Project-Portfolio/releases/tag/yaping-v1.0)** · [The story behind it](docs/JOURNEY.md)
 
 🇬🇧 English · 🇮🇩 [Bahasa Indonesia](README.id.md)
 
@@ -44,7 +44,7 @@ You choose where your audio is processed: Google Gemini for the cleanest output,
 
 ### Option A: Download (recommended)
 
-1. Download **`Yaping-1.0.zip`** from the [latest release](https://github.com/mnaufalzaki/Yaping/releases/latest), unzip it, and drag **Yaping.app** into **Applications**.
+1. Download **`Yaping-1.0.zip`** from the [release page](https://github.com/mnaufalzaki/Project-Portfolio/releases/tag/yaping-v1.0), unzip it, and drag **Yaping.app** into **Applications**.
 2. Open Yaping. macOS will warn that it *"could not verify"* the app, because free open-source apps aren't notarized by Apple. Go to **System Settings › Privacy & Security**, scroll down and click **Open Anyway**. You only need to do this once.
 
 ### Option B: Build from source
@@ -52,8 +52,8 @@ You choose where your audio is processed: Google Gemini for the cleanest output,
 Requires the Xcode Command Line Tools (`xcode-select --install`). The full Xcode app is not needed.
 
 ```bash
-git clone https://github.com/mnaufalzaki/Yaping.git
-cd Yaping
+git clone https://github.com/mnaufalzaki/Project-Portfolio.git
+cd Project-Portfolio/Yaping
 ./build.sh install
 ```
 
