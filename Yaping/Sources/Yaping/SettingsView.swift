@@ -372,18 +372,63 @@ private struct HistoryTab: View {
     }
 }
 
+/// A key is typed, then explicitly saved; once saved it's locked until "Ubah" is pressed.
+/// Status comes from the Keychain without reading the secret, so opening Settings never prompts.
 private final class KeyModel: ObservableObject {
     let account: String
-    @Published var value: String {
-        didSet {
-            KeyStore.set(value, for: account)
-            if account == "groq" { Groq.scheduleRefresh() }
-        }
-    }
+    @Published private(set) var status: KeyStore.Status
+    @Published var editing: Bool
+    @Published var draft = ""
+    @Published private(set) var error: String?
 
     init(account: String) {
         self.account = account
-        value = KeyStore.get(account)
+        let status = KeyStore.status(account)
+        self.status = status
+        editing = status == .missing
+    }
+
+    var canSave: Bool { !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+
+    func save() {
+        guard canSave else { return }
+        if KeyStore.set(draft, for: account) {
+            draft = ""
+            editing = false
+            error = nil
+            if account == "groq" { Groq.scheduleRefresh() }
+        } else {
+            error = "Gagal menyimpan ke Keychain — coba lagi"
+        }
+        status = KeyStore.status(account)
+    }
+
+    func startEditing() {
+        draft = ""
+        error = nil
+        editing = true
+    }
+
+    func cancel() {
+        draft = ""
+        error = nil
+        editing = status == .missing
+    }
+
+    func remove() {
+        KeyStore.set("", for: account)
+        status = KeyStore.status(account)
+        editing = true
+    }
+
+    /// Asks macOS again for a key it refused to hand over.
+    func allow() {
+        if KeyStore.retry(account) {
+            error = nil
+        } else {
+            error = "Masih ditolak — klik Izinkan lalu pilih “Always Allow”, atau Ubah untuk memasukkan ulang"
+        }
+        status = KeyStore.status(account)
     }
 }
 
@@ -397,7 +442,42 @@ private struct KeyField: View {
     }
 
     var body: some View {
-        SecureField(title, text: $model.value, prompt: Text("Tempel di sini"))
+        VStack(alignment: .leading, spacing: 4) {
+            if model.editing {
+                HStack {
+                    SecureField(title, text: $model.draft, prompt: Text("Tempel di sini"))
+                        .onSubmit { model.save() }
+                    Button("Simpan") { model.save() }
+                        .keyboardShortcut(.defaultAction)
+                        .disabled(!model.canSave)
+                    if model.status != .missing {
+                        Button("Batal") { model.cancel() }
+                    }
+                }
+            } else {
+                HStack {
+                    Text(title)
+                    Spacer()
+                    switch model.status {
+                    case .saved:
+                        Label("Tersimpan", systemImage: "checkmark.seal.fill")
+                            .foregroundStyle(.green)
+                        Text("••••••••••").foregroundStyle(.secondary)
+                    case .locked:
+                        Label("Tersimpan, tapi belum diizinkan dibaca", systemImage: "lock.fill")
+                            .foregroundStyle(.orange)
+                        Button("Izinkan") { model.allow() }
+                    case .missing:
+                        EmptyView()
+                    }
+                    Button("Ubah") { model.startEditing() }
+                    Button("Hapus", role: .destructive) { model.remove() }
+                }
+            }
+            if let error = model.error {
+                Text(error).font(.caption).foregroundStyle(.red)
+            }
+        }
     }
 }
 

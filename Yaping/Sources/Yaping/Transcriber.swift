@@ -3,6 +3,8 @@ import Speech
 
 enum YapingError: LocalizedError {
     case missingKey(String)
+    /// The key exists but macOS won't hand it to Yaping yet.
+    case keyLocked(String)
     case http(Int, String)
     case badResponse
     case permission(String)
@@ -13,6 +15,7 @@ enum YapingError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .missingKey(let who): return "API key \(who) belum diisi"
+        case .keyLocked(let who): return "Yaping belum diizinkan membaca API key \(who) — buka Pengaturan › Mesin AI"
         case .http(let code, let msg): return "Error \(code): \(msg)"
         case .badResponse: return "Respons server tidak dikenali"
         case .permission(let what): return "Izin \(what) ditolak"
@@ -89,6 +92,7 @@ enum Transcriber {
         case YapingError.http(401, _), YapingError.http(403, _): return "API key ditolak"
         case YapingError.http(let code, _): return "error \(code)"
         case YapingError.missingKey: return "API key belum diisi"
+        case YapingError.keyLocked: return "akses key belum diizinkan"
         case is URLError: return "internet bermasalah"
         default: return String(error.localizedDescription.prefix(80))
         }
@@ -159,8 +163,8 @@ enum Transcriber {
 
     /// OpenAI-compatible `/audio/transcriptions` (Groq, OpenAI, local servers).
     private static func whisper(_ url: URL, engine: TranscriptionProvider, settings s: AppSettings) async throws -> String {
-        let key = s.key(for: engine)
-        if key.isEmpty && engine != .custom { throw YapingError.missingKey(engine.shortName) }
+        // Custom endpoints (e.g. a local server) may not need a key at all.
+        let key = engine == .custom ? s.key(for: engine) : try KeyStore.required(engine.rawValue, name: engine.shortName)
         guard let endpoint = URL(string: s.baseURL(for: engine))?.appendingPathComponent("audio/transcriptions") else {
             throw YapingError.unavailable("Base URL tidak valid")
         }

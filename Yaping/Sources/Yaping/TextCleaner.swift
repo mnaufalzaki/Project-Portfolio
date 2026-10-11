@@ -62,8 +62,7 @@ enum TextCleaner {
 
     /// Anthropic Messages API over raw HTTP (there is no official Swift SDK).
     private static func claude(system: String, user: String, model: String) async throws -> String {
-        let key = KeyStore.get("anthropic")
-        guard !key.isEmpty else { throw YapingError.missingKey("Anthropic") }
+        let key = try KeyStore.required("anthropic", name: "Anthropic")
 
         var req = URLRequest(url: URL(string: "https://api.anthropic.com/v1/messages")!, timeoutInterval: 45)
         req.httpMethod = "POST"
@@ -106,8 +105,7 @@ enum TextCleaner {
     /// Groq chat with two safety nets: a model this account can't use is swapped for one it can,
     /// and a slow/overloaded model hands over to a fast backup so dictation never hangs.
     private static func groq(system: String, user: String, model: String) async throws -> String {
-        let key = KeyStore.get("groq")
-        guard !key.isEmpty else { throw YapingError.missingKey("Groq") }
+        let key = try KeyStore.required("groq", name: "Groq")
         do {
             return try await chatCompletion(system: system, user: user, baseURL: Groq.baseURL,
                                             key: key, model: model, timeout: groqTimeout)

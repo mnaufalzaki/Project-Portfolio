@@ -5,8 +5,7 @@ enum GeminiTranscriber {
     static let endpoint = URL(string: "https://generativelanguage.googleapis.com/v1beta/interactions")!
 
     static func transcribe(_ url: URL, model: String, settings s: AppSettings) async throws -> String {
-        let key = KeyStore.get(TranscriptionProvider.gemini.rawValue)
-        guard !key.isEmpty else { throw YapingError.missingKey("Gemini") }
+        let key = try KeyStore.required(TranscriptionProvider.gemini.rawValue, name: "Gemini")
 
         var config: [String: Any] = [
             "language_codes": languageCodes(s.language),
