@@ -13,7 +13,7 @@ Tekan <kbd>⌘</kbd><kbd>⌥</kbd>, bicara seperti biasa, tekan lagi, dan teks y
 ![Apple Silicon](https://img.shields.io/badge/Apple%20Silicon-optimized-555555)
 ![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)
 
-**[⬇️ Download untuk Mac](https://github.com/mnaufalzaki/Project-Portfolio/releases/tag/yaping-v1.0)** · [Cerita di baliknya](docs/JOURNEY.id.md)
+**[⬇️ Download untuk Mac](https://github.com/mnaufalzaki/Project-Portfolio/releases/tag/yaping-v1.0)** · [Cerita di baliknya](docs/JOURNEY.id.md) · [Dokumentasi teknis (PDF)](docs/Dokumentasi%20Teknis%20Yaping.pdf)
 
 🇬🇧 [English](README.md) · 🇮🇩 Bahasa Indonesia
 

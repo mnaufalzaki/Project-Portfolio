@@ -13,7 +13,7 @@ Press <kbd>⌘</kbd><kbd>⌥</kbd>, speak naturally, press again, and clean, pun
 ![Apple Silicon](https://img.shields.io/badge/Apple%20Silicon-optimized-555555)
 ![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)
 
-**[⬇️ Download for Mac](https://github.com/mnaufalzaki/Project-Portfolio/releases/tag/yaping-v1.0)** · [The story behind it](docs/JOURNEY.md)
+**[⬇️ Download for Mac](https://github.com/mnaufalzaki/Project-Portfolio/releases/tag/yaping-v1.0)** · [The story behind it](docs/JOURNEY.md) · [Technical docs (PDF, Indonesian)](docs/Dokumentasi%20Teknis%20Yaping.pdf)
 
 🇬🇧 English · 🇮🇩 [Bahasa Indonesia](README.id.md)
 
