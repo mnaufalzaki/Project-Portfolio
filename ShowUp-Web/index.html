@@ -651,7 +651,11 @@ body{padding-top:env(safe-area-inset-top)}
       e.preventDefault();
       var btn = e.target.querySelector('button[type=submit]');
       btn.disabled = true; loginMsg('Memeriksa…');
-      sb.auth.verifyOtp({ email: pendingEmail, token: $('code').value.trim(), type: 'email' }).then(function (r) {
+      var token = $('code').value.trim();
+      /* first sign-in may arrive via the "Confirm signup" template, so accept a signup code too */
+      sb.auth.verifyOtp({ email: pendingEmail, token: token, type: 'email' }).then(function (r) {
+        return r.error ? sb.auth.verifyOtp({ email: pendingEmail, token: token, type: 'signup' }) : r;
+      }).then(function (r) {
         btn.disabled = false;
         if (r.error) { loginMsg('Kode salah atau sudah kedaluwarsa.', true); return; }
         loginMsg('');
