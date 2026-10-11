@@ -34,7 +34,7 @@ ShowUp berjalan di browser HP maupun laptop, dapat dipasang di Home Screen sebag
 
 ## Fitur
 
-- **Tahan untuk check-in.** Ring terisi selama 2,5 detik: tombol tertekan, busur terisi dengan ujung yang menyala, titik-titik cahaya terhisap masuk, dan tombol bergetar halus di saat-saat terakhir. Jika dilepas sebelum penuh, semuanya kembali dan tidak ada yang tersimpan.
+- **Tahan untuk check-in.** Ring terisi selama 3,4 detik: tombol tertekan, busur terisi dengan ujung yang menyala, titik-titik cahaya terhisap masuk, dan tombol bergetar halus di saat-saat terakhir, diiringi nada lembut yang makin tinggi. Jika dilepas sebelum penuh, semuanya kembali dan tidak ada yang tersimpan.
 - **Perayaan yang menampilkan hasil.** Tombol yang ditekan naik ke tengah layar, menyala, lalu hasilnya muncul di bawahnya: jumlah hari ini (misalnya 2/4 → 3/4) dan tujuh hari terakhir, dengan hari ini terisi paling akhir. Setelah itu tombol kembali ke kartunya.
 - **Konsistensi, bukan streak.** Setiap kebiasaan memiliki heatmap 18 minggu. Hari yang terlewat hanya berupa satu kotak kosong, bukan penghitung yang kembali ke nol.
 - **Tenggat pribadi.** Header menghitung mundur ke pukul 21.00, waktu gadget off. Tampilannya menghangat mulai 19.00 bila masih ada yang belum selesai, menjadi mendesak pada 30 menit terakhir, dan berganti menjadi "Sampai besok" setelahnya. Pergantian hari kalender tetap pukul 00.00 waktu lokal.
@@ -52,7 +52,7 @@ ShowUp dibangun berdasarkan preferensi satu orang, sehingga perbandingan ini men
 | Pendorong utama | Melihat konsistensi terkumpul | Tidak memutus rantai | Poin, level, quest bersama | Skor kekuatan kebiasaan dan grafik |
 | Saat satu hari terlewat | Satu kotak kosong | Streak kembali ke nol | Karakter terkena damage | Skor turun perlahan |
 | Pengaturan awal | Tidak ada: empat kebiasaan tetap | Memilih dan mengatur tugas | Membuat habit, daily, to-do | Membuat dan mengatur kebiasaan |
-| Gestur menyelesaikan | Menahan 2,5 detik dengan sengaja | Ketuk atau ketuk-tahan | Ketuk | Ketuk |
+| Gestur menyelesaikan | Menahan 3,4 detik dengan sengaja | Ketuk atau ketuk-tahan | Ketuk | Ketuk |
 | Persiapan malam | Hitung mundur tenggat 21.00 bawaan | Pengingat | Pengingat | Pengingat |
 | Platform | Browser modern apa pun, bisa dipasang di iOS dan Android | Platform Apple | Web, iOS, Android | Android |
 | Data | Project Supabase milik sendiri, antrean offline | Sinkronisasi cloud vendor | Akun vendor | Di perangkat |

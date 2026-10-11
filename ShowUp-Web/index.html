@@ -21,7 +21,7 @@
 html,body{margin:0;background:#0B0B0F}
 body{color:#EDEDF2;font-family:Geist,system-ui,sans-serif;-webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent}
 button{font:inherit;color:inherit}
-.app{width:390px;max-width:100%;margin:0;box-sizing:border-box;padding:28px 16px 32px;display:flex;flex-direction:column;gap:14px;--c0:0ms;--hold:2500ms;--op0:1}
+.app{width:390px;max-width:100%;margin:0;box-sizing:border-box;padding:28px 16px 32px;display:flex;flex-direction:column;gap:14px;--c0:0ms;--hold:3400ms;--op0:1}
 .app.off{--op0:.62}
 @media (min-width:640px){.app{margin:0 auto}}
 .disp{font-family:'Bricolage Grotesque',Geist,sans-serif}
@@ -466,7 +466,7 @@ body{padding-top:env(safe-area-inset-top)}
       icon: 'M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z' }
   ];
   /* HOLD: how long the circle must be held to check in — one constant drives CSS, JS, haptics and capture */
-  var WEEKS = 18, CIRC = 157.08, HOLD = 2500, KEY_LEAD = 300, CELEBRATION = 3650;
+  var WEEKS = 18, CIRC = 157.08, HOLD = 3400, KEY_LEAD = 300, CELEBRATION = 3650;
   /* specks pulled in toward the button while charging: [x, y start offset, size, white?, start as fraction of HOLD] */
   var GATHER = [[-44, -30, 4, 1, .18], [40, -40, 3, 0, .30], [-38, 34, 3, 0, .42], [46, 22, 4, 1, .54], [-6, -50, 3, 1, .64], [-52, 4, 3, 0, .74]]
     .map(function (g) { return '<span class="gs" style="--x:' + g[0] + 'px;--y:' + g[1] + 'px;--s:' + g[2] + 'px;--b:' + (g[3] ? '#FFFFFF' : 'var(--c45)') + ';--f:' + g[4] + '"></span>'; }).join('');
@@ -859,6 +859,7 @@ body{padding-top:env(safe-area-inset-top)}
     card.classList.add('holding');
     holdKey = key;
     haptic('start');
+    holdSoundStart(idxOf(key));
     clearTicks();
     tickT = [setTimeout(function () { haptic('tick'); }, HOLD / 3), setTimeout(function () { haptic('tick'); }, HOLD * 2 / 3)];
     clearTimeout(holdT);
@@ -867,6 +868,7 @@ body{padding-top:env(safe-area-inset-top)}
   function cancelHold(key) {
     if (holdKey !== key) return;
     clearTimeout(holdT); clearTicks(); holdKey = null;
+    holdSoundStop(0.18);
     var card = cardEl(key), prog = card.querySelector('.prog');
     var cur = parseFloat(getComputedStyle(prog).strokeDashoffset);   /* where the (eased) arc actually is */
     if (!isFinite(cur)) cur = CIRC;
@@ -887,6 +889,7 @@ body{padding-top:env(safe-area-inset-top)}
   /* via: 'pointer' (hold already played) | 'key' (instant data, short visual charge) | 'capture' */
   function complete(key, via) {
     clearTimeout(holdT); clearTicks(); holdKey = null;
+    holdSoundStop(0.06);
     if (S.done[key]) return;
     var prevCount = count(), prevSub = $('cdSub').querySelector('.new').textContent;
     clearTimeout(celebT); endCelebration(); void app.offsetWidth;
@@ -911,6 +914,39 @@ body{padding-top:env(safe-area-inset-top)}
       chime(idxOf(key));
       celebT = setTimeout(endCelebration, lead + CELEBRATION);
     }
+  }
+
+  /* hold sound: a soft tone that rises in pitch and swells while the ring charges */
+  var holdSnd = null;
+  function holdSoundStart(i) {
+    try {
+      var AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
+      ac = ac || new AC();
+      if (ac.state === 'suspended') ac.resume();
+      holdSoundStop(0.02);
+      var base = [523.25, 587.33, 659.25, 698.46][i] || 523.25, t = ac.currentTime, d = HOLD / 1000;
+      var o = ac.createOscillator(), o2 = ac.createOscillator(), g = ac.createGain();
+      o.type = 'triangle'; o2.type = 'sine';
+      o.frequency.setValueAtTime(base / 2, t); o.frequency.exponentialRampToValueAtTime(base, t + d);
+      o2.frequency.setValueAtTime(base / 2 * 1.5, t); o2.frequency.exponentialRampToValueAtTime(base * 1.5, t + d);
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.035, t + 0.2);
+      g.gain.linearRampToValueAtTime(0.09, t + d);
+      o.connect(g); o2.connect(g); g.connect(ac.destination);
+      o.start(t); o2.start(t);
+      holdSnd = { o: o, o2: o2, g: g };
+    } catch (e) {}
+  }
+  function holdSoundStop(fade) {
+    if (!holdSnd || !ac) return;
+    var s = holdSnd; holdSnd = null;
+    try {
+      var t = ac.currentTime;
+      s.g.gain.cancelScheduledValues(t);
+      s.g.gain.setValueAtTime(Math.max(s.g.gain.value, 0.0001), t);
+      s.g.gain.exponentialRampToValueAtTime(0.0001, t + fade);
+      s.o.stop(t + fade + 0.02); s.o2.stop(t + fade + 0.02);
+    } catch (e) {}
   }
 
   var ac = null;

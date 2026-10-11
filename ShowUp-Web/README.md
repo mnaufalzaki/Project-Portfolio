@@ -34,7 +34,7 @@ It runs in the browser on a phone or a laptop, installs to the home screen as a 
 
 ## Features
 
-- **Hold to check in.** The ring charges over 2.5 seconds: the button compresses, the arc fills with a bright leading tip, specks gather in, and the last moments tremble. Releasing early rewinds and records nothing.
+- **Hold to check in.** The ring charges over 3.4 seconds: the button compresses, the arc fills with a bright leading tip, specks gather in, and the last moments tremble, while a soft tone rises in pitch. Releasing early rewinds and records nothing.
 - **A celebration with a result.** The pressed button lifts to centre stage, lights up, and the outcome lands beneath it: the day's count (for example 2/4 → 3/4) and the last seven days, with today filling in last. Then it flies home.
 - **Consistency instead of streaks.** Each habit shows an 18-week heatmap. A missed day is one empty square, not a counter reset to zero.
 - **A personal deadline.** The header counts down to 21:00, the "devices off" time. It warms from 19:00 when something is still open, turns urgent in the last 30 minutes, and switches to a calm "see you tomorrow" afterwards. The calendar day still rolls over at 00:00 local time.
@@ -52,7 +52,7 @@ ShowUp is built around one person's preferences, so the comparison is about trad
 | Core motivator | Seeing consistency accumulate | Not breaking the chain | Points, levels, party quests | Habit-strength score and charts |
 | What happens on a missed day | One empty square | Streak resets to zero | Character takes damage | Score dips gradually |
 | Setup | None: four fixed habits | Choose and configure tasks | Create habits, dailies, to-dos | Create and configure habits |
-| Completion gesture | Deliberate 2.5 s hold | Tap or tap-and-hold | Tap | Tap |
+| Completion gesture | Deliberate 3.4 s hold | Tap or tap-and-hold | Tap | Tap |
 | Evening wind-down | Built-in 21:00 deadline countdown | Reminders | Reminders | Reminders |
 | Platforms | Any modern browser, installable on iOS and Android | Apple platforms | Web, iOS, Android | Android |
 | Data | Your own Supabase project, offline queue | Vendor cloud sync | Vendor account | On-device |
