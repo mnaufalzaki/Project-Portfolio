@@ -39,7 +39,7 @@ ShowUp berjalan di browser HP maupun laptop, dapat dipasang di Home Screen sebag
 - **Konsistensi, bukan streak.** Setiap kebiasaan memiliki heatmap 18 minggu. Hari yang terlewat hanya berupa satu kotak kosong, bukan penghitung yang kembali ke nol.
 - **Tenggat pribadi.** Header menghitung mundur ke pukul 21.00, waktu gadget off. Tampilannya menghangat mulai 19.00 bila masih ada yang belum selesai, menjadi mendesak pada 30 menit terakhir, dan berganti menjadi "Sampai besok" setelahnya. Pergantian hari kalender tetap pukul 00.00 waktu lokal.
 - **HP dan laptop, satu sumber data.** PWA yang dapat dipasang dengan cache app shell. Setiap perubahan disimpan ke antrean lokal terlebih dahulu dan disinkronkan ketika koneksi tersedia.
-- **Privat sejak awal.** Masuk sekali per perangkat dengan kode atau link dari email, setelah itu sesi tetap aktif. Row Level Security membatasi setiap baris data hanya untuk pemiliknya.
+- **Privat sejak awal.** Masuk sekali per perangkat dengan GitHub atau kode/link dari email, setelah itu sesi tetap aktif. Row Level Security membatasi setiap baris data hanya untuk pemiliknya.
 - **Getaran bila platform mendukung.** `navigator.vibrate` di Android dan teknik haptic switch iOS 18 di Safari, keduanya bersifat best-effort.
 - **Aksesibel.** Check-in lewat keyboard (Space atau Enter pada ring yang terfokus), dukungan `prefers-reduced-motion`, target sentuh 44 px, dan ukuran teks minimal 12 px.
 

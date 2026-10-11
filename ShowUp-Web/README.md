@@ -39,7 +39,7 @@ It runs in the browser on a phone or a laptop, installs to the home screen as a 
 - **Consistency instead of streaks.** Each habit shows an 18-week heatmap. A missed day is one empty square, not a counter reset to zero.
 - **A personal deadline.** The header counts down to 21:00, the "devices off" time. It warms from 19:00 when something is still open, turns urgent in the last 30 minutes, and switches to a calm "see you tomorrow" afterwards. The calendar day still rolls over at 00:00 local time.
 - **Phone and laptop, one source of truth.** Installable PWA with an app-shell cache. Every change is written to a local queue first and synced when a connection is available.
-- **Private by design.** One sign-in per device with an email code or link, after which the session persists. Row Level Security limits every row to its owner.
+- **Private by design.** One sign-in per device with GitHub or an email code/link, after which the session persists. Row Level Security limits every row to its owner.
 - **Haptics where the platform allows.** `navigator.vibrate` on Android and the iOS 18 switch-haptic technique in Safari, both best-effort.
 - **Accessible.** Keyboard check-in (Space or Enter on a focused ring), `prefers-reduced-motion` support, 44 px touch targets and a 12 px minimum text size.
 
