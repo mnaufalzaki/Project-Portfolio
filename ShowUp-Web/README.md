@@ -73,6 +73,39 @@ These choices reflect personal preference and were made deliberately:
 - **"Eat the Frog first."** A standing reminder to do the hardest thing early in the day.
 - **Dark interface, one colour per habit.** Colour is earned: a habit that is not done today is shown dimmed and becomes fully lit when you check in.
 
+## Architecture
+
+GitHub Pages serves the interface; Supabase holds sign-in and data. The two never talk to each other: each device loads the app from GitHub Pages and then talks to Supabase directly.
+
+```mermaid
+flowchart TB
+    subgraph Devices["Your devices"]
+        PH[iPhone<br/>PWA on the home screen]
+        MAC[Mac<br/>browser]
+        LS[(Local cache +<br/>offline queue)]
+        PH --- LS
+        MAC --- LS
+    end
+    GP[GitHub Pages<br/>index.html · sw.js · icons]
+    subgraph SB["Supabase"]
+        AU[Auth<br/>GitHub OAuth · email code]
+        DB[(Postgres: checkins<br/>Row Level Security)]
+    end
+    GH[GitHub OAuth app]
+    GP -->|load app once, cached by service worker| Devices
+    Devices -->|sign in| AU
+    AU <-->|verify account| GH
+    Devices <-->|read / write check-ins| DB
+```
+
+| Piece | Holds | Notes |
+|---|---|---|
+| GitHub Pages | The app files only | Public and static; no personal data. Updating the UI is a commit and push. |
+| Service worker | A cached copy of the app shell | The app opens offline; the page is fetched fresh whenever the network is available. |
+| Local cache and queue | Recent check-ins and unsynced changes | Check-ins made offline are replayed in order when the device reconnects. |
+| Supabase Auth | Your account and sessions | GitHub sign-in, with an email code or pasted link as a fallback. One sign-in per device. |
+| Supabase Postgres | The `checkins` table | Row Level Security limits every row to its owner. The publishable key in the client cannot bypass it. |
+
 ## Tech stack
 
 | Layer | Choice |

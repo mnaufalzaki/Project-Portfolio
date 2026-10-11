@@ -111,6 +111,45 @@ Gemini (utama) ──gagal──▶ Groq (cadangan) ──gagal──▶ whisper
 
   Angka Groq akurat karena dibaca dari header rate-limit-nya. Gemini tidak memberi tahu sisa kuota, jadi Yaping menghitung request-nya sendiri (ditandai **±**). Hitungan direset tengah malam UTC (07.00 WIB), dan otomatis dikoreksi oleh jawaban Google begitu batasnya tercapai.
 
+## Arsitektur
+
+Yaping berjalan sebagai satu proses native di menu bar. Semuanya berjalan di Mac kamu, kecuali mesin cloud yang kamu aktifkan sendiri.
+
+```mermaid
+flowchart TB
+    subgraph App["Yaping.app (menu bar)"]
+        HK[HotkeyMonitor<br/>pendengar ⌘⌥ global] --> DC[DictationController<br/>pengatur alur]
+        DC --> REC[AudioRecorder<br/>AVAudioEngine, segmen saat jeda]
+        REC --> CP[ChunkPipeline<br/>antrean segmen berurutan]
+        CP --> TR[Transcriber<br/>rantai mesin + coba ulang]
+        TR --> TC[TextCleaner<br/>rapikan teks, buang halusinasi]
+        TC --> TI[TextInserter<br/>tempel, kembalikan clipboard]
+        DC --> OV[Overlay<br/>tampilan gelombang & status]
+        TR --> QU[Quota<br/>batas & jeda tunggu]
+        ST[AppSettings + SettingsView] -.-> TR
+        KS[KeyStore<br/>Keychain macOS] -.-> TR
+        TI --> HI[HistoryStore]
+    end
+    TR -->|HTTPS| GEM[Google Gemini]
+    TR -->|HTTPS| GRQ[Groq Whisper]
+    TR --> LW[server whisper.cpp<br/>lokal, offline]
+    TR --> AS[Apple Speech<br/>di perangkat]
+    TC -.->|tulis ulang opsional| LLM[Groq · Claude · Ollama]
+```
+
+| Komponen | Tugas |
+|---|---|
+| `HotkeyMonitor` | Mendengarkan shortcut global untuk memulai atau menghentikan dikte. |
+| `DictationController` | Mengatur satu sesi dikte dari awal sampai teks ditempel, termasuk status di layar. |
+| `AudioRecorder` | Merekam audio 16 kHz mono dan menutup segmen pada jeda alami setelah 45–75 detik. |
+| `ChunkPipeline` | Mentranskripsi segmen selagi kamu masih bicara dan menjaga urutannya. |
+| `Transcriber`, `GeminiTranscriber`, `Groq`, `LocalWhisper` | Menjalankan rantai utama → cadangan → offline, dengan satu kali coba ulang per segmen. |
+| `Quota` | Mencatat pemakaian kuota gratis dan mematuhi waktu tunggu dari penyedia, tersimpan walau app ditutup. |
+| `TextCleaner` | Membuang kata pengisi dan halusinasi yang dikenal; penulisan ulang AI bersifat opsional. |
+| `TextInserter` | Menempel teks di posisi kursor lewat clipboard, lalu mengembalikan isi clipboard sebelumnya. |
+| `KeyStore` | Menyimpan API key di Keychain login macOS. |
+| `AppSettings`, `SettingsView`, `Overlay`, `HistoryStore` | Pengaturan, HUD perekaman yang melayang, dan riwayat transkripsi. |
+
 ## Cara kerja
 
 ```mermaid

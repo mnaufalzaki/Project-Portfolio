@@ -73,6 +73,39 @@ Pilihan-pilihan ini mencerminkan preferensi pribadi dan diambil dengan sengaja:
 - **"Eat the Frog first."** Pengingat tetap untuk mengerjakan hal paling berat lebih dulu.
 - **Tampilan gelap, satu warna per kebiasaan.** Warna harus didapat: kebiasaan yang belum selesai hari ini tampil redup dan baru menyala penuh setelah check-in.
 
+## Arsitektur
+
+GitHub Pages menyajikan tampilan, sedangkan Supabase menyimpan login dan data. Keduanya tidak saling terhubung: setiap perangkat memuat aplikasi dari GitHub Pages, lalu berkomunikasi langsung dengan Supabase.
+
+```mermaid
+flowchart TB
+    subgraph Devices["Perangkat kamu"]
+        PH[iPhone<br/>PWA di Home Screen]
+        MAC[Mac<br/>browser]
+        LS[(Cache lokal +<br/>antrean offline)]
+        PH --- LS
+        MAC --- LS
+    end
+    GP[GitHub Pages<br/>index.html · sw.js · ikon]
+    subgraph SB["Supabase"]
+        AU[Auth<br/>GitHub OAuth · kode email]
+        DB[(Postgres: checkins<br/>Row Level Security)]
+    end
+    GH[GitHub OAuth app]
+    GP -->|muat aplikasi, disimpan service worker| Devices
+    Devices -->|login| AU
+    AU <-->|verifikasi akun| GH
+    Devices <-->|baca / tulis check-in| DB
+```
+
+| Bagian | Menyimpan | Catatan |
+|---|---|---|
+| GitHub Pages | Hanya file aplikasi | Publik dan statis, tanpa data pribadi. Memperbarui tampilan cukup dengan commit dan push. |
+| Service worker | Salinan app shell | Aplikasi tetap terbuka saat offline; halaman diambil ulang setiap kali ada koneksi. |
+| Cache dan antrean lokal | Check-in terbaru dan perubahan yang belum tersinkron | Check-in saat offline dikirim berurutan ketika perangkat kembali online. |
+| Supabase Auth | Akun dan sesi | Login GitHub, dengan kode atau link email sebagai cadangan. Cukup sekali per perangkat. |
+| Supabase Postgres | Tabel `checkins` | Row Level Security membatasi setiap baris hanya untuk pemiliknya. Publishable key di klien tidak bisa menembusnya. |
+
 ## Teknologi
 
 | Lapisan | Pilihan |

@@ -114,6 +114,45 @@ Gemini (primary) ──fails──▶ Groq (backup) ──fails──▶ local w
 
   Groq's figures are exact (read from its rate-limit headers). Gemini doesn't expose remaining quota, so Yaping counts its own requests (marked **±**). The count resets at midnight UTC and is corrected automatically by Google's response once the limit is reached.
 
+## Architecture
+
+Yaping is a single native menu-bar process. Everything runs on your Mac except the cloud engines you choose to enable.
+
+```mermaid
+flowchart TB
+    subgraph App["Yaping.app (menu bar)"]
+        HK[HotkeyMonitor<br/>global ⌘⌥ listener] --> DC[DictationController<br/>state machine]
+        DC --> REC[AudioRecorder<br/>AVAudioEngine, segments on pauses]
+        REC --> CP[ChunkPipeline<br/>ordered segment queue]
+        CP --> TR[Transcriber<br/>engine chain + retries]
+        TR --> TC[TextCleaner<br/>tidy text, drop hallucinations]
+        TC --> TI[TextInserter<br/>paste, restore clipboard]
+        DC --> OV[Overlay<br/>waveform & status HUD]
+        TR --> QU[Quota<br/>limits & cooldowns]
+        ST[AppSettings + SettingsView] -.-> TR
+        KS[KeyStore<br/>macOS Keychain] -.-> TR
+        TI --> HI[HistoryStore]
+    end
+    TR -->|HTTPS| GEM[Google Gemini]
+    TR -->|HTTPS| GRQ[Groq Whisper]
+    TR --> LW[whisper.cpp server<br/>local, offline]
+    TR --> AS[Apple Speech<br/>on-device]
+    TC -.->|optional rewrite| LLM[Groq · Claude · Ollama]
+```
+
+| Component | Responsibility |
+|---|---|
+| `HotkeyMonitor` | Listens for the global shortcut and starts or stops a dictation. |
+| `DictationController` | Coordinates one dictation from start to paste and drives the on-screen state. |
+| `AudioRecorder` | Captures 16 kHz mono audio and closes a segment at a natural pause after 45–75 s. |
+| `ChunkPipeline` | Transcribes segments while you keep speaking and keeps them in order. |
+| `Transcriber`, `GeminiTranscriber`, `Groq`, `LocalWhisper` | Run the primary → backup → offline chain, with one retry per segment. |
+| `Quota` | Tracks free-tier usage and honours provider retry times, persisted across restarts. |
+| `TextCleaner` | Removes filler words and known hallucinations; optional AI rewrite. |
+| `TextInserter` | Pastes at the cursor through the clipboard, then restores what was there. |
+| `KeyStore` | Stores API keys in the macOS login Keychain. |
+| `AppSettings`, `SettingsView`, `Overlay`, `HistoryStore` | Preferences, the floating recording HUD and recent transcripts. |
+
 ## How it works
 
 ```mermaid
