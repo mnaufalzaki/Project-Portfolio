@@ -1,0 +1,984 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0B0B0F">
+<title>ShowUp · Hari ini</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="ShowUp">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&family=Geist:wght@400..700&family=Geist+Mono:wght@500;700&display=swap">
+<style>
+:root{color-scheme:dark}
+html,body{margin:0;background:#0B0B0F}
+body{color:#EDEDF2;font-family:Geist,system-ui,sans-serif;-webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent}
+button{font:inherit;color:inherit}
+.app{width:390px;max-width:100%;margin:0;box-sizing:border-box;padding:28px 16px 32px;display:flex;flex-direction:column;gap:14px;--c0:0ms;--hold:2500ms;--op0:1}
+.app.off{--op0:.62}
+@media (min-width:640px){.app{margin:0 auto}}
+.disp{font-family:'Bricolage Grotesque',Geist,sans-serif}
+.haptic{position:fixed;left:-9999px;top:0;width:1px;height:1px;overflow:hidden;opacity:0;pointer-events:none}
+[hidden]{display:none !important}
+body{padding-top:env(safe-area-inset-top)}
+
+/* login */
+.login{width:390px;max-width:100%;box-sizing:border-box;padding:72px 20px 32px;display:flex;flex-direction:column;gap:18px}
+@media (min-width:640px){.login{margin:0 auto}}
+.login h1{margin:0;font-size:44px;font-weight:800;letter-spacing:-0.045em;line-height:1}
+.login p{margin:0;font-size:14px;line-height:1.45;color:#A1A1AE}
+.login form{display:flex;flex-direction:column;gap:10px}
+.login label{font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#8B8B98}
+.field{height:52px;border-radius:16px;border:1px solid rgba(255,255,255,.1);background:#14141A;color:#EDEDF2;font:500 17px Geist,system-ui,sans-serif;padding:0 16px;outline:none}
+.field:focus{border-color:#A78BFA}
+.field.code{font-family:'Geist Mono',ui-monospace,monospace;font-size:24px;letter-spacing:.3em;text-align:center}
+.primary{height:52px;border-radius:16px;border:0;background:#EDEDF2;color:#0B0B0F;font:600 16px Geist,system-ui,sans-serif;cursor:pointer}
+.primary:disabled{opacity:.5;cursor:default}
+.login .msg{font-size:13px;color:#A1A1AE;min-height:18px}
+.login .msg.err{color:#FCA5A5}
+.linkbtn{background:none;border:0;padding:8px 0;color:#8B8B98;font:500 13px Geist,system-ui,sans-serif;cursor:pointer;text-decoration:underline;text-underline-offset:3px;align-self:flex-start}
+.sync{font-size:12px;color:#6E6E7A;text-align:center;min-height:16px}
+.sync.warn{color:#FDBA74}
+
+/* header */
+.top{display:flex;align-items:flex-end;justify-content:space-between;padding:0 4px}
+.brand{font-size:34px;font-weight:800;letter-spacing:-0.04em;line-height:1}
+.date{font-size:13px;color:#8B8B98;padding-bottom:4px}
+
+/* countdown */
+.cd{border-radius:22px;padding:18px 18px 16px;background:#14141A;border:1px solid rgba(255,255,255,.07);display:flex;flex-direction:column;gap:6px;transition:background 400ms,border-color 400ms}
+.cd-l{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--fg)}
+.cd-dot{width:7px;height:7px;border-radius:50%;background:var(--dot)}
+.cd-big{color:var(--fg);line-height:1.05}
+.cd-big.mono{font-family:'Geist Mono',ui-monospace,monospace;font-size:46px;font-weight:700;letter-spacing:-0.03em;font-variant-numeric:tabular-nums}
+.cd-big.txt{font-family:'Bricolage Grotesque',Geist,sans-serif;font-size:30px;font-weight:700;letter-spacing:-0.03em;line-height:1.1}
+.cd-sub{font-size:13px;color:#A1A1AE}
+.cd[data-tone=calm]{--fg:#EDEDF2;--dot:#8B8B98}
+.cd[data-tone=warm]{--fg:#FDBA74;--dot:#FB923C;background:rgba(251,146,60,.08);border-color:rgba(251,146,60,.30)}
+.cd[data-tone=urgent]{--fg:#FCA5A5;--dot:#F87171;background:rgba(248,113,113,.10);border-color:rgba(248,113,113,.38)}
+.cd[data-tone=off]{--fg:#C9C9D3;--dot:#6E6E7A;background:#101015;border-color:rgba(255,255,255,.06)}
+.cd[data-tone=done]{--fg:#F4F4F7;--dot:#86EFAC;border-color:rgba(255,255,255,.16)}
+.cd[data-tone=warm] .cd-dot,.cd[data-tone=urgent] .cd-dot{animation:pulse 1.4s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.7)}}
+
+/* text swap (old value leaves, new value arrives) */
+.swap{display:inline-grid;overflow:hidden;vertical-align:bottom}
+.swap>span{grid-area:1/1}
+.swap>.old{display:none}
+.app.celebrating .swap>.old{display:block}
+
+/* frog */
+.frog{display:flex;align-items:center;gap:12px;padding:4px 4px 2px}
+.frog-t{font-size:16px;font-weight:700}
+.frog-s{font-size:13px;color:#8B8B98}
+
+/* progress */
+.prog-wrap{display:flex;flex-direction:column;gap:8px;padding:0 4px 4px}
+.prog-row{display:flex;justify-content:space-between;font-size:13px}
+.prog-row b{font-weight:600}
+.prog-note{color:#8B8B98}
+.segs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+.seg{height:6px;border-radius:999px;background:#22222B;position:relative}
+.seg .fill{position:absolute;inset:0;border-radius:inherit;background:var(--c);box-shadow:0 0 10px var(--c55);transform:scaleX(0);transform-origin:left center;transition:transform 300ms ease-out}
+.seg.on .fill{transform:none}
+
+/* ───────── cards: two states, dim (not done today) and lit (done) ───────── */
+.card{--op:1;position:relative;border-radius:22px;background:#14141A;border:1px solid rgba(255,255,255,.06);padding:16px;display:flex;flex-direction:column;gap:14px;opacity:var(--op);transition:opacity 300ms}
+.app.off .card:not(.done){--op:.62}
+.head{display:flex;align-items:center;gap:12px}
+.ico{width:40px;height:40px;border-radius:12px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:#1F1F27;color:#8B8B98}
+.card.done .ico{background:var(--c14);color:var(--c)}
+.meta{flex-grow:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.nm{display:flex;align-items:center;gap:8px}
+.name{font-size:19px;font-weight:700;letter-spacing:-0.02em}
+.badge{font-size:13px;font-weight:600;line-height:18px;color:var(--c);background:var(--c14);padding:1px 9px;border-radius:999px;opacity:0;transform:scale(.4);transform-origin:left center}
+.card.done .badge{opacity:1;transform:none}
+.desc{font-size:13px;line-height:1.35;color:#A1A1AE}
+
+.orbwrap{position:relative;width:64px;height:64px;flex-shrink:0}
+.hold{position:absolute;inset:0;width:64px;height:64px;padding:0;border:0;border-radius:50%;background:transparent;cursor:pointer;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;z-index:2}
+.hold:focus-visible{outline:2px solid #EDEDF2;outline-offset:4px}
+.card.done .hold{cursor:default}
+.orb{position:absolute;inset:0;transition:transform 260ms ease-out}
+.orb svg.ring{position:absolute;inset:0;overflow:visible}
+.prog{stroke:var(--c45);stroke-dasharray:157.08;stroke-dashoffset:157.08}
+.card.done .prog{stroke:var(--c);stroke-dashoffset:0}
+.inner{position:absolute;inset:10px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#1F1F27;color:#8B8B98}
+.card.done .inner{background:var(--c);box-shadow:0 0 16px var(--c40)}
+.lbl{position:absolute;font:600 12px Geist,system-ui,sans-serif;letter-spacing:.01em}
+.card.done .lbl{opacity:0}
+.chk,.gchk{position:absolute;opacity:0}
+.card.holding.celebrating .gchk{animation:ghostin 300ms ease-out calc(var(--hold) / 2) forwards,ghostoff 300ms linear calc(var(--c0) + 1900ms) forwards}
+@keyframes ghostoff{0%,100%{opacity:0}}
+.card.done .chk{opacity:1}
+
+.grid{display:grid;grid-template-rows:repeat(7,14px);grid-auto-flow:column;grid-auto-columns:14px;gap:4px;justify-content:space-between}
+.cell{width:14px;height:14px;border-radius:4px;background:#1B1B23;box-sizing:border-box;border:1.5px solid transparent}
+.cell.future{background:transparent}
+.cell.on{background:var(--c40)}
+.card.done .cell.on{background:var(--c88)}
+.cell.today{position:relative;z-index:2;background:transparent;border-style:dashed;border-color:var(--c)}
+.card.done .cell.today{background:var(--c);border-color:transparent;box-shadow:0 0 12px var(--c75)}
+
+.foot{display:flex;align-items:center;justify-content:space-between;margin:-6px -8px -8px 0}
+.foot span{font-size:12px;color:#6E6E7A}
+.iconbtn{width:44px;height:32px;border-radius:999px;border:0;background:transparent;color:#8B8B98;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.iconbtn:hover{background:rgba(255,255,255,.06);color:#EDEDF2}
+.iconbtn:focus-visible,.ghost:focus-visible{outline:2px solid #EDEDF2;outline-offset:2px}
+.menu{display:none;flex-wrap:wrap;gap:8px;margin-top:-4px}
+.card.menu-open .menu{display:flex}
+.ghost{background:transparent;border:1px solid rgba(255,255,255,.1);color:#C9C9D3;border-radius:999px;font:500 12px Geist,system-ui,sans-serif;padding:0 14px;height:36px;cursor:pointer}
+.ghost:hover{background:rgba(255,255,255,.05)}
+.ghost.danger{color:#FCA5A5;border-color:rgba(248,113,113,.4)}
+
+.bottom{display:flex;flex-direction:column;align-items:center;gap:10px;padding-top:10px}
+.hint{font-size:12px;color:#6E6E7A}
+.confirm{display:flex;align-items:center;gap:8px;font-size:13px;color:#C9C9D3}
+
+/* ───────── stage: the pressed button lifts out of its card, comes alive, the result lands under it, then it flies home ───────── */
+.stage{display:none;position:fixed;inset:0;z-index:50;pointer-events:none;overflow:hidden}
+.stage.capture{position:absolute;left:0;top:0;right:auto;bottom:auto;width:390px;height:844px}
+.app.celebrating .stage{display:block}
+/* scrim: near-opaque so the dashboard is hidden (not dimmed); lifts away top → bottom following the button home */
+.scrim{position:absolute;inset:0;opacity:0;background:linear-gradient(to bottom,rgba(11,11,15,0) 0%,rgba(11,11,15,0) 40%,rgba(11,11,15,.97) 60%,rgba(11,11,15,.97) 100%) 0 100%/100% 250% no-repeat}
+.hero{position:absolute;left:calc(var(--sx) - 77px);top:calc(var(--sy) - 77px);width:154px;height:154px;opacity:0}
+.hmove{position:absolute;inset:0}
+/* drawn with real width/height (not a scale) so the ring stays an even thickness: a soft body, not a tilting coin */
+.hbody{position:absolute;left:50%;bottom:0;width:154px;height:154px;box-sizing:border-box;border:11px solid var(--c);border-radius:50%;background:#23232C;transform:translateX(-50%)}
+.hhalo{position:absolute;inset:-70px;border-radius:50%;background:radial-gradient(circle,var(--c55) 0%,var(--c24) 34%,transparent 66%);opacity:0}
+.hbody{border-color:var(--c45)}
+.hinner{position:absolute;inset:13px;border-radius:inherit;background:var(--c24s);display:flex;align-items:center;justify-content:center;overflow:hidden}
+/* ignite: saturated colour floods outward from the check, with a white-hot core */
+.hinner::before{content:'';position:absolute;inset:0;border-radius:inherit;background:var(--c);transform:scale(0)}
+.hinner::after{content:'';position:absolute;inset:-10%;border-radius:50%;background:radial-gradient(circle,#FFFFFF 0%,rgba(255,255,255,.85) 30%,rgba(255,255,255,0) 70%);opacity:0;transform:scale(.2)}
+.hck{position:relative;z-index:2;width:46%;height:46%;overflow:visible}
+.hck path{stroke:#B4B4BF}
+.sfx{position:absolute;width:0;height:0}
+.sfx.top{left:var(--tx);top:var(--ty)}
+.wc .sfx{left:50%;top:50%;z-index:2}
+.sp{position:absolute;left:calc(var(--w) / -2);top:calc(var(--h) / -2);width:var(--w);height:var(--h);border-radius:999px;background:var(--bg);opacity:0}
+.slot{position:absolute;inset:4px;border-radius:50%;border:2px dashed var(--c55);opacity:0;pointer-events:none}
+
+/* payoff block under the hero: name, big count, last 7 days (today last) */
+.pay{position:absolute;left:var(--tx);top:calc(var(--ty) + 92px);width:358px;margin-left:-179px;display:flex;flex-direction:column;align-items:center}
+.pname,.pcount,.week{opacity:0}
+.pname{font-family:'Bricolage Grotesque',Geist,sans-serif;font-size:30px;font-weight:800;letter-spacing:-0.035em;color:#FFFFFF;line-height:1.1}
+.pcount{display:flex;flex-direction:column;align-items:center;margin-top:2px}
+.pnum{font-family:'Geist Mono',ui-monospace,monospace;font-size:92px;font-weight:700;letter-spacing:-0.05em;line-height:1;font-variant-numeric:tabular-nums;color:#FFFFFF;display:flex;align-items:baseline}
+.pnum .of{color:#4A4A55}
+.proll{display:inline-grid;overflow:hidden;padding:0 2px}
+.proll>span{grid-area:1/1}
+.proll>.new{color:var(--c)}
+.plab{font-size:13px;color:#A1A1AE;margin-top:2px}
+.week{display:flex;gap:6px;margin-top:24px}
+.wd{display:flex;flex-direction:column;align-items:center;gap:7px;opacity:0}
+.wl{font-size:12px;font-weight:600;color:#8B8B98;letter-spacing:.02em}
+.wd.is-today .wl{color:#FFFFFF}
+.wc{position:relative;width:46px;height:46px;border-radius:50%;box-sizing:border-box;display:flex;align-items:center;justify-content:center;background:#1F1F27;border:2px solid rgba(255,255,255,.10)}
+.wc.on{background:var(--c);border-color:var(--c)}
+.wc svg{opacity:0}
+.wc.on svg{opacity:1}
+.wc.today{background:transparent;border:2px dashed var(--c)}
+
+/* ───────── HOLD (t = 0 … --hold): charging up, not a progress bar ─────────
+   press: button sinks under the finger · arc (45%) eases round with a white-hot leading tip
+   core warms toward the habit tint and its glow grows · specks get pulled IN toward the button
+   "Tahan" → "Terus…" → outline check · tremble builds only in the last 20% */
+.card.holding .prog{animation:ringfill var(--hold) cubic-bezier(.3,.08,.55,1) forwards}
+.card.holding .tip{animation:tipfill var(--hold) cubic-bezier(.3,.08,.55,1) forwards,tipshow var(--hold) linear forwards}
+.card.holding .orb{animation:charge var(--hold) linear forwards}
+.card.holding .orbwrap{animation:tremble var(--hold) linear forwards}
+.card.holding .inner{animation:innerseep var(--hold) cubic-bezier(.5,0,.7,1) forwards}
+.card.holding .lbl{animation:lblout 250ms ease-out forwards}
+.card.holding .lbl2{animation:terus var(--hold) linear forwards}
+.card.holding .gchk{animation:ghostin 300ms ease-out calc(var(--hold) * .66) forwards}
+.card.holding .gs{animation:gather 520ms cubic-bezier(.55,0,.85,.4) calc(var(--hold) * var(--f)) both}
+.card.holding{animation:cardcharge var(--hold) linear forwards}
+.orb{transform-origin:50% 80%}
+.inner{transition:background-color 260ms ease-out,box-shadow 260ms ease-out}
+.tip{stroke:#FFFFFF;stroke-dasharray:3 157.08;stroke-dashoffset:3;opacity:0;filter:drop-shadow(0 0 3px rgba(255,255,255,.9));transition:opacity 200ms}
+.lbl2{position:absolute;font:600 12px Geist,system-ui,sans-serif;letter-spacing:-.02em;opacity:0;white-space:nowrap}
+.gather{position:absolute;left:50%;top:50%;width:0;height:0;pointer-events:none;z-index:3}
+.gs{position:absolute;left:calc(var(--s) / -2);top:calc(var(--s) / -2);width:var(--s);height:var(--s);border-radius:50%;background:var(--b);opacity:0}
+@keyframes ringfill{from{stroke:var(--c45);stroke-dashoffset:157.08}to{stroke:var(--c45);stroke-dashoffset:0}}
+@keyframes tipfill{from{stroke-dashoffset:3}to{stroke-dashoffset:-154.08}}
+@keyframes tipshow{0%{opacity:0}6%,100%{opacity:1}}
+.card.holding.celebrating .prog{animation:ringfill var(--hold) cubic-bezier(.3,.08,.55,1) forwards,ringdone 300ms linear calc(var(--c0) + 3100ms) forwards}
+.card.holding.celebrating .tip{animation:tipfill var(--hold) cubic-bezier(.3,.08,.55,1) forwards,tipshow var(--hold) linear forwards,tipoff 300ms linear var(--c0) forwards}
+@keyframes tipoff{from,to{opacity:0}}
+@keyframes ringdone{from,to{stroke:var(--c);stroke-dashoffset:0}}
+/* sinks fast on press, then keeps compressing; ends on the pose the stage hero takes over from */
+@keyframes charge{
+  0%{transform:none;animation-timing-function:cubic-bezier(.2,.8,.3,1)}
+  8%{transform:scale(1.05,.95)}
+  70%{transform:rotate(-2deg) scale(1.12,.89);animation-timing-function:ease-in}
+  100%{transform:rotate(-5deg) scale(1.2,.83)}}
+@keyframes tremble{0%,80%{transform:none}82%{transform:translate(0.5px,-0.4px)}84%{transform:translate(-0.7px,0.5px)}86%{transform:translate(0.8px,-0.6px)}88%{transform:translate(-1.0px,0.6px)}90%{transform:translate(1.1px,-0.8px)}92%{transform:translate(-1.3px,0.8px)}94%{transform:translate(1.4px,-1.0px)}96%{transform:translate(-1.6px,1.0px)}98%{transform:translate(1.6px,-1.1px)}100%{transform:none}}
+@keyframes innerseep{from{background:#1F1F27;box-shadow:0 0 0 transparent}to{background:var(--c24s);box-shadow:0 0 18px 3px var(--c24)}}
+@keyframes lblout{from{opacity:1;transform:none}to{opacity:0;transform:scale(.7)}}
+@keyframes terus{0%,12%{opacity:0;transform:scale(.8)}20%,58%{opacity:1;transform:none}66%,100%{opacity:0;transform:scale(.9)}}
+@keyframes ghostin{from{opacity:0}to{opacity:1}}
+/* specks drift in from outside and vanish into the rim */
+@keyframes gather{
+  0%{opacity:0;transform:translate(var(--x),var(--y)) scale(.6)}
+  25%{opacity:1}
+  85%{opacity:1;transform:translate(calc(var(--x) * .3),calc(var(--y) * .3)) scale(1)}
+  100%{opacity:0;transform:translate(calc(var(--x) * .2),calc(var(--y) * .2)) scale(.4)}}
+@keyframes cardcharge{from{border-color:rgba(255,255,255,.06);opacity:var(--op0)}to{border-color:var(--c22);opacity:1}}
+
+/* ───────── CELEBRATION (t = --c0 …)  stage runs c0 … c0+3100 ─────────
+   lift 0–300 · crouch 300–600 · stretch + flood 680–880 · land 980 · overshoot 1100–1200 · settled + lit 1380
+   payoff on stage: name + 2/4 1250 · flip to 3/4 1600 · 7-day row 1950 · today fills last 2300
+   fly home 2750–3100 · dock + gentle echoes 3100–3560 (at rest ≈3.56s after completion)
+   The dashboard switches to its final state at c0+300, hidden under the opaque scrim — once the stage says 3/4, nothing on screen says otherwise. */
+.card.celebrating .orb{animation:orbaway 3400ms linear var(--c0) forwards}
+.card.holding.celebrating .orb{animation:charge var(--hold) linear forwards,orbaway 3400ms linear var(--c0) forwards}
+@keyframes orbaway{
+  0%{opacity:0;transform:none}
+  91.1%{opacity:0;transform:none}
+  91.2%{opacity:1;transform:none;animation-timing-function:cubic-bezier(.3,.8,.4,1)}
+  95.6%{opacity:1;transform:scale(1.12,.9)}
+  100%{opacity:1;transform:none}}
+.card.celebrating .slot{animation:slot 3100ms linear var(--c0) forwards}
+@keyframes slot{0%,99.6%{opacity:1}100%{opacity:0}}
+.card.holding.celebrating .inner{animation:innerseep var(--hold) cubic-bezier(.5,0,.7,1) forwards,innerdone 300ms linear calc(var(--c0) + 3100ms) forwards}
+@keyframes innerdone{from{background:var(--c);box-shadow:0 0 16px var(--c40)}to{background:var(--c);box-shadow:0 0 16px var(--c40)}}
+.card.celebrating .chk{animation:chkin 300ms linear calc(var(--c0) + 3080ms) both}
+@keyframes chkin{0%{opacity:0}1%,100%{opacity:1}}
+.card.holding.celebrating .gchk{animation:ghostin 300ms ease-out calc(var(--hold) * .66) forwards,ghostoff 300ms linear calc(var(--c0) + 3050ms) forwards}
+@keyframes ghostoff{0%,100%{opacity:0}}
+
+.app.celebrating .scrim{animation:scrim 3100ms linear var(--c0) forwards}
+@keyframes scrim{
+  0%{opacity:0;background-position:0 100%;animation-timing-function:ease-out}
+  9.68%{opacity:1;background-position:0 100%}
+  88.71%{opacity:1;background-position:0 100%;animation-timing-function:cubic-bezier(.4,0,.6,1)}
+  99%{opacity:1;background-position:0 0%}
+  100%{opacity:0;background-position:0 0%}}
+.app.celebrating .hero{animation:heroshow 3100ms linear var(--c0) forwards}
+@keyframes heroshow{0%,99.7%{opacity:1}100%{opacity:0}}
+.app.celebrating .hmove{animation:travel 3100ms linear var(--c0) forwards}
+@keyframes travel{
+  0%{transform:translate(0,0) scale(.4156);animation-timing-function:cubic-bezier(.3,.8,.35,1.04)}
+  9.68%{transform:translate(var(--hx),var(--hy)) scale(1)}
+  88.71%{transform:translate(var(--hx),var(--hy)) scale(1);animation-timing-function:cubic-bezier(.45,0,.4,1)}
+  100%{transform:translate(0,0) scale(.4156)}}
+.app.celebrating .hbody{animation:shape 3100ms linear var(--c0) forwards}
+@keyframes shape{
+  0.00%{width:185px;height:128px;border-radius:50%;transform:translateX(-50%) rotate(-5deg);animation-timing-function:ease-out}
+  4.84%{width:142px;height:168px;border-radius:50%;transform:translateX(-50%) translateY(-6px);animation-timing-function:ease-in-out}
+  9.68%{width:154px;height:154px;border-radius:50%;transform:translateX(-50%);animation-timing-function:ease-in-out}
+  12.26%{width:188px;height:126px;border-radius:50% 50% 46% 46% / 62% 62% 38% 38%;transform:translateX(-50%);animation-timing-function:ease-in-out}
+  19.35%{width:196px;height:120px;border-radius:50% 50% 46% 46% / 62% 62% 38% 38%;transform:translateX(-50%);animation-timing-function:cubic-bezier(.2,.9,.3,1.1)}
+  21.94%{width:126px;height:190px;border-radius:50% 50% 50% 50% / 60% 60% 40% 40%;transform:translateX(-50%) translateY(-30px) rotate(6deg);animation-timing-function:ease-in-out}
+  28.39%{width:130px;height:182px;border-radius:50% 50% 50% 50% / 60% 60% 40% 40%;transform:translateX(-50%) translateY(-42px) rotate(4deg);animation-timing-function:cubic-bezier(.5,0,.8,.5)}
+  31.61%{width:192px;height:148px;border-radius:50% 50% 46% 46% / 58% 58% 42% 42%;transform:translateX(-50%);animation-timing-function:cubic-bezier(.2,.8,.3,1)}
+  35.48%{width:178px;height:178px;border-radius:50%;transform:translateX(-50%)}
+  38.71%{width:178px;height:178px;border-radius:50%;transform:translateX(-50%);animation-timing-function:ease-in-out}
+  41.94%{width:148px;height:148px;border-radius:50%;transform:translateX(-50%);animation-timing-function:ease-in-out}
+  44.52%{width:154px;height:154px;border-radius:50%;transform:translateX(-50%)}
+  88.71%{width:154px;height:154px;border-radius:50%;transform:translateX(-50%);animation-timing-function:ease-in-out}
+  93.87%{width:146px;height:162px;border-radius:50%;transform:translateX(-50%);animation-timing-function:ease-out}
+  100.00%{width:154px;height:154px;border-radius:50%;transform:translateX(-50%)}
+}
+.app.celebrating .hinner{animation:hfill 3100ms linear var(--c0) forwards}
+/* dormant: the whole hero drains to neutral grey as it lifts and stays grey through the crouch */
+@keyframes hfill{0%{background:var(--c24s)}6.45%,100%{background:#34343F}}
+.app.celebrating .hinner::before{animation:hflood 3100ms linear var(--c0) forwards}
+@keyframes hflood{0%,21.94%{transform:scale(0);animation-timing-function:cubic-bezier(.2,.7,.3,1)}26.45%,100%{transform:scale(1)}}
+.app.celebrating .hinner::after{animation:hcore 3100ms linear var(--c0) forwards}
+@keyframes hcore{0%,21.61%{opacity:0;transform:scale(.2)}22.26%{opacity:1;transform:scale(.35)}25.81%{opacity:.9;transform:scale(1.05)}30.97%,100%{opacity:0;transform:scale(1.3)}}
+/* ring: dim 45% (as held) → neutral grey → saturated only after the flood reaches it; glow blooms to a peak at the overshoot */
+.app.celebrating .hbody{animation:shape 3100ms linear var(--c0) forwards,hring 3100ms linear var(--c0) forwards}
+@keyframes hring{
+  0%{border-color:var(--c45);box-shadow:0 0 0 transparent}
+  6.45%,23.87%{border-color:#62626F;box-shadow:0 0 0 transparent}
+  27.74%{border-color:var(--c);box-shadow:0 0 26px 4px var(--c40)}
+  36.13%,39.35%{border-color:var(--c);box-shadow:0 0 70px 18px var(--c55)}
+  46.77%,100%{border-color:var(--c);box-shadow:0 0 18px 2px var(--c40)}}
+.app.celebrating .hck path{animation:hck 3100ms linear var(--c0) forwards}
+@keyframes hck{0%,22.58%{stroke:#B4B4BF}23.87%,100%{stroke:#0B0B0F}}
+.app.celebrating .hhalo{animation:hhalo 3100ms linear var(--c0) forwards}
+@keyframes hhalo{0%,22.58%{opacity:0;transform:scale(.5)}28.39%{opacity:.55;transform:scale(1) translateY(-20px)}37.10%{opacity:1;transform:scale(1.3)}46.77%{opacity:.35;transform:scale(1.25)}88.71%{opacity:.35;transform:scale(1.25)}95.16%,100%{opacity:0;transform:scale(1.3)}}
+.app.celebrating .sp{animation:spark var(--dur) linear calc(var(--c0) + var(--dl)) forwards}
+@keyframes spark{
+  0%{opacity:1;transform:translate(var(--ox),var(--oy)) rotate(var(--r)) scale(.5);animation-timing-function:cubic-bezier(.15,.75,.4,1)}
+  12%{opacity:1;transform:translate(calc(var(--ox) + var(--x) * .35),calc(var(--oy) + var(--y) * .4)) rotate(var(--r)) scale(1.1)}
+  50%{opacity:1;transform:translate(calc(var(--ox) + var(--x) * .8),calc(var(--oy) + var(--y))) rotate(var(--r)) scale(1);animation-timing-function:cubic-bezier(.5,0,.85,.55)}
+  80%{opacity:1;transform:translate(calc(var(--ox) + var(--x) * 1.02),calc(var(--oy) + var(--y) + var(--g) * .55)) rotate(calc(var(--r) + 40deg)) scale(.8)}
+  100%{opacity:0;transform:translate(calc(var(--ox) + var(--x) * 1.15),calc(var(--oy) + var(--y) + var(--g))) rotate(calc(var(--r) + 70deg)) scale(.4)}}
+
+/* payoff beat 1 (c0+1250): name + "2/4" arrive under the settled hero */
+.app.celebrating .pname,.app.celebrating .pcount{animation:payin 1750ms linear calc(var(--c0) + 1250ms) forwards}
+/* the week row leaves with the rest at 2750 */
+.app.celebrating .week{animation:payin2 1050ms linear calc(var(--c0) + 1950ms) forwards}
+@keyframes payin{0%{opacity:0;transform:translateY(16px);animation-timing-function:cubic-bezier(.2,.9,.3,1)}17.1%{opacity:1;transform:none}85.7%{opacity:1;transform:none;animation-timing-function:ease-in}100%{opacity:0;transform:translateY(14px)}}
+@keyframes payin2{0%,76.1%{opacity:1;transform:none;animation-timing-function:ease-in}100%{opacity:0;transform:translateY(14px)}}
+/* payoff beat 2 (c0+1600): the numeral flips 2 → 3 on its own */
+.app.celebrating .proll>.old{animation:rollout 340ms cubic-bezier(.5,0,.8,.4) calc(var(--c0) + 1600ms) both}
+.app.celebrating .proll>.new{animation:pnumin 440ms cubic-bezier(.2,1.4,.4,1) calc(var(--c0) + 1640ms) both}
+@keyframes pnumin{0%{opacity:0;transform:translateY(90%)}60%{opacity:1;transform:translateY(-5%) scale(1.1)}100%{opacity:1;transform:none}}
+/* payoff beat 3 (c0+1950): the last seven days pop in left → right */
+.app.celebrating .wd{animation:wdin 320ms cubic-bezier(.2,1.3,.4,1) calc(var(--c0) + 1950ms + var(--i) * 35ms) both}
+@keyframes wdin{0%{opacity:0;transform:translateY(10px) scale(.6)}100%{opacity:1;transform:none}}
+/* payoff beat 4 (c0+2300): today — the last one — fills */
+.app.celebrating .wc.today{animation:wtoday 450ms linear calc(var(--c0) + 2300ms) both}
+@keyframes wtoday{
+  0%{background:transparent;border-color:var(--c);transform:none;box-shadow:0 0 0 transparent;animation-timing-function:ease-out}
+  20%{background:#FFFFFF;border-color:#FFFFFF;transform:scale(.8);animation-timing-function:cubic-bezier(.2,.9,.3,1.2)}
+  55%{background:var(--c);border-color:var(--c);transform:scale(1.32);box-shadow:0 0 26px 5px var(--c55);animation-timing-function:ease-in-out}
+  100%{background:var(--c);border-color:var(--c);transform:none;box-shadow:0 0 14px var(--c40)}}
+.app.celebrating .wc.today svg{animation:chkin 300ms linear calc(var(--c0) + 2390ms) both}
+
+/* hidden switch (c0+300, under the opaque scrim): the dashboard already shows the final state when the scrim lifts */
+.card.celebrating .badge{animation:flipBadge 400ms linear var(--c0) both}
+@keyframes flipBadge{0%{opacity:0;transform:scale(.4);animation-timing-function:step-end}75%,100%{opacity:1;transform:none}}
+.card.celebrating .ico{animation:flipIco 400ms linear var(--c0) both}
+@keyframes flipIco{0%{background:#1F1F27;color:#8B8B98;animation-timing-function:step-end}75%,100%{background:var(--c14);color:var(--c)}}
+.card.celebrating .cell.on{animation:flipCell 400ms linear var(--c0) both,echoCell 360ms ease-out calc(var(--c0) + 3140ms + var(--wd, 0ms))}
+@keyframes flipCell{0%{background:var(--c40);animation-timing-function:step-end}75%,100%{background:var(--c88)}}
+@keyframes echoCell{0%{background:var(--c88);transform:none}45%{background:var(--c);transform:scale(1.18)}100%{background:var(--c88);transform:none}}
+.card.celebrating .cell.today{animation:flipToday 400ms linear var(--c0) both,echoToday 420ms ease-in-out calc(var(--c0) + 3220ms)}
+@keyframes flipToday{0%{background:transparent;border-color:var(--c);box-shadow:0 0 0 transparent;animation-timing-function:step-end}75%,100%{background:var(--c);border-color:transparent;box-shadow:0 0 12px var(--c75)}}
+@keyframes echoToday{0%{transform:none;background:var(--c);border-color:transparent;box-shadow:0 0 12px var(--c75)}45%{transform:scale(1.7);background:var(--c);border-color:transparent;box-shadow:0 0 20px 3px var(--c75)}100%{transform:none;background:var(--c);border-color:transparent;box-shadow:0 0 12px var(--c75)}}
+.app.celebrating .roll>.old,.app.celebrating .cd-sub>.old{animation:flipOut 400ms linear var(--c0) both}
+.app.celebrating .roll>.new,.app.celebrating .cd-sub>.new{animation:flipIn 400ms linear var(--c0) both}
+@keyframes flipOut{0%{opacity:1;animation-timing-function:step-end}75%,100%{opacity:0}}
+@keyframes flipIn{0%{opacity:0;animation-timing-function:step-end}75%,100%{opacity:1}}
+.app.celebrating .seg.pop .fill{animation:flipSeg 400ms linear var(--c0) both,echoSeg 400ms ease-in-out calc(var(--c0) + 3260ms)}
+@keyframes flipSeg{0%{transform:scaleX(0);animation-timing-function:step-end}75%,100%{transform:none}}
+@keyframes echoSeg{0%{transform:none}45%{transform:scaleY(2.2)}100%{transform:none}}
+/* card echo on dock: soft 22% glow; the state itself is already correct */
+.card.celebrating{animation:cardglow 500ms ease-out calc(var(--c0) + 3100ms) forwards}
+.card.holding.celebrating{animation:cardcharge var(--hold) linear forwards,cardglow 500ms ease-out calc(var(--c0) + 3100ms) forwards}
+@keyframes cardglow{0%{border-color:var(--c22);box-shadow:0 0 0 transparent;opacity:1}30%{border-color:var(--c22);box-shadow:0 0 24px var(--c22)}100%{border-color:rgba(255,255,255,.06);box-shadow:0 0 0 transparent;opacity:1}}
+@keyframes rollout{from{opacity:1;transform:none}to{opacity:0;transform:translateY(-90%)}}
+@keyframes rollin{from{opacity:0;transform:translateY(90%)}to{opacity:1;transform:none}}
+
+@media (prefers-reduced-motion: reduce){
+  .app *:not(.prog),.app .card{animation:none !important}
+  .stage{display:none !important}
+  .inner,.badge,.ico,.cell,.fill{transition:opacity 180ms,background-color 180ms,color 180ms !important}
+  .badge,.seg .fill{transform:none !important}
+  .seg:not(.on) .fill{opacity:0}
+  .swap>.old{display:none !important}
+}
+</style>
+</head>
+<body>
+<section class="login" id="login" hidden>
+  <h1 class="disp">ShowUp</h1>
+  <p>Masuk sekali di perangkat ini. Setelah itu kamu tetap masuk.</p>
+  <form id="emailForm">
+    <label for="email">Email</label>
+    <input class="field" id="email" type="email" autocomplete="email" inputmode="email" required>
+    <button class="primary" type="submit">Kirim kode</button>
+  </form>
+  <form id="codeForm" hidden>
+    <label for="code">Kode dari email</label>
+    <input class="field code" id="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6,10}" maxlength="10" required>
+    <button class="primary" type="submit">Masuk</button>
+    <button class="linkbtn" type="button" id="backBtn">Ganti email</button>
+  </form>
+  <div class="msg" id="loginMsg" role="status"></div>
+</section>
+<main class="app" id="app">
+  <div class="top">
+    <div class="brand disp">ShowUp</div>
+    <div class="date" id="date"></div>
+  </div>
+
+  <section class="cd" id="cd" data-tone="calm" aria-live="polite">
+    <div class="cd-l"><span class="cd-dot"></span><span id="cdLabel"></span></div>
+    <div class="cd-big mono" id="cdBig"></div>
+    <div class="cd-sub swap" id="cdSub"><span class="old"></span><span class="new"></span></div>
+  </section>
+
+  <div class="frog">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#86EFAC" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20c-4.4 0-8-2.7-8-6 0-1.8 1-3.4 2.6-4.5A3 3 0 1 1 11 6.2c.3 0 .7-.2 1-.2s.7.1 1 .2a3 3 0 1 1 4.4 3.3C19 10.6 20 12.2 20 14c0 3.3-3.6 6-8 6Z M9 14.5c1.6 1 4.4 1 6 0"/></svg>
+    <div style="display:flex;flex-direction:column;gap:1px">
+      <div class="frog-t disp">Eat the Frog first.</div>
+      <div class="frog-s">Kerjakan yang paling berat duluan.</div>
+    </div>
+  </div>
+
+  <div class="prog-wrap">
+    <div class="prog-row">
+      <b><span class="swap roll" id="roll"><span class="old"></span><span class="new"></span></span> / 4 hari ini</b>
+      <span class="prog-note" id="note"></span>
+    </div>
+    <div class="segs" id="segs"></div>
+  </div>
+
+  <div id="cards" style="display:flex;flex-direction:column;gap:14px"></div>
+
+  <div class="bottom">
+    <div class="hint">Tahan lingkaran sampai penuh untuk check-in</div>
+    <div id="resetZone"></div>
+    <div class="sync" id="sync" role="status"></div>
+    <button class="linkbtn" type="button" id="logoutBtn" hidden style="align-self:center">Keluar</button>
+  </div>
+
+  <div class="stage" id="stage" aria-hidden="true">
+    <div class="scrim"></div>
+    <div class="hero">
+      <div class="hmove">
+        <div class="hhalo"></div>
+        <div class="hbody">
+          <div class="hinner">
+            <svg class="hck" viewBox="0 0 24 24" preserveAspectRatio="none" fill="none"><path d="M20 6 9 17l-5-5" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/></svg>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="sfx top" id="sfxTop"></div>
+    <div class="pay">
+      <div class="pname" id="pname"></div>
+      <div class="pcount"><span class="pnum"><span class="proll"><span class="old" id="pOld"></span><span class="new" id="pNew"></span></span><span class="of">/4</span></span><span class="plab">habit hari ini</span></div>
+      <div class="week" id="week"></div>
+    </div>
+  </div>
+</main>
+
+<script>
+(function () {
+  'use strict';
+  var HABITS = [
+    { key: 'study', name: 'Study', desc: 'Minimal 1 jam · metode SQ3R', p: 0.74, color: '#A78BFA',
+      icon: 'M22 10 12 5 2 10l10 5 10-5Z M6 12v5c3 3 9 3 12 0v-5' },
+    { key: 'read', name: 'Read', desc: 'Minimal 20 halaman', p: 0.58, color: '#60A5FA',
+      icon: 'M2 4h6a4 4 0 0 1 4 4v13a3 3 0 0 0-3-3H2Z M22 4h-6a4 4 0 0 0-4 4v13a3 3 0 0 1 3-3h7Z' },
+    { key: 'wake', name: 'Wake Early', desc: 'Gadget off 21.00 · tidur 22.00 · bangun 05.00', p: 0.64, color: '#FB923C',
+      icon: 'M12 2v6 M4.93 10.93l1.41 1.41 M2 18h2 M20 18h2 M19.07 10.93l-1.41 1.41 M22 22H2 M16 18a4 4 0 0 0-8 0 M8 6l4-4 4 4' },
+    { key: 'p', name: 'P', desc: 'Check in sebelum gadget off', p: 0.86, color: '#2DD4BF',
+      icon: 'M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z' }
+  ];
+  /* HOLD: how long the circle must be held to check in — one constant drives CSS, JS, haptics and capture */
+  var WEEKS = 18, CIRC = 157.08, HOLD = 2500, KEY_LEAD = 300, CELEBRATION = 3650;
+  /* specks pulled in toward the button while charging: [x, y start offset, size, white?, start as fraction of HOLD] */
+  var GATHER = [[-44, -30, 4, 1, .18], [40, -40, 3, 0, .30], [-38, 34, 3, 0, .42], [46, 22, 4, 1, .54], [-6, -50, 3, 1, .64], [-52, 4, 3, 0, .74]]
+    .map(function (g) { return '<span class="gs" style="--x:' + g[0] + 'px;--y:' + g[1] + 'px;--s:' + g[2] + 'px;--b:' + (g[3] ? '#FFFFFF' : 'var(--c45)') + ';--f:' + g[4] + '"></span>'; }).join('');
+  var DAYS = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+  var MONTHS = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+  /* stage sparks: [ox, oy (launch point on the top-right edge of the stretching egg), x, y (throw), w, h, streak?, delay after c0, duration, fall]
+     flung up and to the right, the way the body springs: one large, two mid, three specks — each its own arc and speed */
+  var SPARKS_TOP = [
+    [27, -134, 52, -100, 26, 26, 0, 680, 760, 90],
+    [11, -142, 20, -185, 10, 32, 1, 700, 660, 55],
+    [40, -121, 138, -70, 14, 14, 0, 690, 600, 85],
+    [22, -138, 90, -150, 4, 14, 1, 725, 620, 60],
+    [52, -102, 175, -20, 6, 6, 0, 710, 560, 70],
+    [6, -142, -10, -130, 5, 5, 0, 745, 640, 45]
+  ];
+  var SPARKS_WK = [ /* one off today's circle as it fills */
+    [0, 0, 26, -44, 12, 12, 0, 2380, 560, 40]
+  ];
+
+  var params = new URLSearchParams(location.search);
+  var CAP_KEY = params.get('capture');
+  var CAP_T = +(params.get('t') || 0);
+  var MODE = CAP_KEY ? 'capture' : (params.get('state') || 'live');
+  var frozen = null;
+  if (MODE !== 'live') { var fz = new Date(); fz.setHours(18, 17, 42, 0); frozen = fz.getTime(); } /* static renders: one fixed moment */
+
+  /* live = real data from Supabase; idle/done/capture = demo data for screenshots */
+  var LIVE = MODE === 'live';
+  var S = LIVE ? {
+    done: { study: false, read: false, wake: false, p: false },
+    yest: { study: false, read: false, wake: false, p: false },
+    wiped: false, menu: null, confirming: false
+  } : {
+    done: { study: true, read: false, wake: true, p: false },
+    yest: { study: true, read: false, wake: true, p: true },
+    wiped: false, menu: null, confirming: false
+  };
+  if (MODE === 'done') S.done.read = true;
+
+  var app = document.getElementById('app');
+  var stage = document.getElementById('stage');
+  var $ = function (id) { return document.getElementById(id); };
+
+  function rnd(n) { var x = Math.sin(n * 12.9898) * 43758.5453; return x - Math.floor(x); }
+  function rgba(hex, a) {
+    var n = parseInt(hex.replace('#', ''), 16);
+    return 'rgba(' + ((n >> 16) & 255) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + a + ')';
+  }
+  function pad(n) { return (n < 10 ? '0' : '') + n; }
+  function fmt(ms) { var s = Math.max(0, Math.floor(ms / 1000)); return pad(Math.floor(s / 3600)) + ':' + pad(Math.floor((s % 3600) / 60)) + ':' + pad(s % 60); }
+  function joinNames(l) { return l.length <= 1 ? l.join('') : l.slice(0, -1).join(', ') + ' & ' + l[l.length - 1]; }
+  function now() { return new Date(frozen || Date.now()); }
+  /* deterministic mock history: was habit #idx done `ago` days back? (ago ≥ 1) */
+  function wasDone(idx, ago) {
+    if (LIVE) return has(HABITS[idx].key, dayKey(ago));
+    if (ago === 1) return !!S.yest[HABITS[idx].key];
+    return !S.wiped && rnd(idx * 977 + ago * 31.7) < HABITS[idx].p * (0.5 + 0.5 * (1 - ago / (WEEKS * 7)));
+  }
+  function count() { return HABITS.filter(function (h) { return S.done[h.key]; }).length; }
+  function idxOf(key) { for (var i = 0; i < HABITS.length; i++) if (HABITS[i].key === key) return i; return -1; }
+  function cardEl(key) { return document.querySelector('.card[data-key="' + key + '"]'); }
+  /* c at alpha a laid over the neutral #1F1F27, as an opaque colour */
+  function mix(hex, a) {
+    var n = parseInt(hex.replace('#', ''), 16), b = [31, 31, 39];
+    return 'rgb(' + [(n >> 16) & 255, (n >> 8) & 255, n & 255].map(function (v, i) { return Math.round(b[i] + (v - b[i]) * a); }).join(',') + ')';
+  }
+  function colorVars(c) {
+    return '--c24s:' + mix(c, .24) + ';--c45s:' + mix(c, .45) + ';--c:' + c + ';--c12:' + rgba(c, .12) + ';--c14:' + rgba(c, .14) + ';--c22:' + rgba(c, .22) + ';--c24:' + rgba(c, .24) +
+      ';--c40:' + rgba(c, .40) + ';--c45:' + rgba(c, .45) + ';--c55:' + rgba(c, .55) + ';--c75:' + rgba(c, .75) + ';--c88:' + rgba(c, .88);
+  }
+
+  /* ───────── data: Supabase, with a local cache and an offline queue ─────────
+     One row in `checkins` = one habit done on one local calendar day ("YYYY-MM-DD").
+     Every change lands in the cache + queue first, so the UI never waits on the network. */
+  var SUPA_URL = 'https://hdfyevzxilwhmdnybegr.supabase.co';
+  var SUPA_KEY = 'sb_publishable_NnSr1UgeB2aYotlE0XmBbw_12PfJTK-';
+  var CACHE = 'showup.rows.v1', QUEUE = 'showup.queue.v1';
+  var sb = null, user = null, rows = {}, today = null, flushing = false;
+
+  function dayKey(ago) {
+    var d = now(); d.setDate(d.getDate() - (ago || 0));
+    return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+  }
+  function has(habit, day) { return !!rows[habit + '|' + day]; }
+  function lsGet(k, def) { try { var v = localStorage.getItem(k); return v ? JSON.parse(v) : def; } catch (e) { return def; } }
+  function lsSet(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+  function derive() {
+    today = dayKey(0);
+    var y = dayKey(1);
+    HABITS.forEach(function (h) { S.done[h.key] = has(h.key, today); S.yest[h.key] = has(h.key, y); });
+  }
+  function setSync(text, warn) {
+    var el = $('sync'); if (!el) return;
+    el.textContent = text || ''; el.classList.toggle('warn', !!warn);
+  }
+  function applyOp(map, x) {
+    if (x.op === 'wipe') return {};
+    if (x.op === 'add') map[x.habit + '|' + x.day] = 1; else delete map[x.habit + '|' + x.day];
+    return map;
+  }
+  /* op: 'add' | 'del' for one habit-day, or 'wipe' for everything */
+  function persist(op, habit, day) {
+    if (!LIVE) return;
+    var x = { op: op, habit: habit || '*', day: day || '*' };
+    rows = applyOp(rows, x);
+    lsSet(CACHE, rows);
+    var q = op === 'wipe' ? [] : lsGet(QUEUE, []).filter(function (y) { return !(y.habit === x.habit && y.day === x.day); });
+    q.push(x);
+    lsSet(QUEUE, q);
+    flush();
+  }
+  function flush() {
+    if (!sb || !user || flushing) return;
+    var q = lsGet(QUEUE, []);
+    if (!q.length) { setSync(''); return; }
+    if (!navigator.onLine) { setSync(q.length + ' perubahan menunggu koneksi', true); return; }
+    flushing = true;
+    var x = q[0], t = sb.from('checkins');
+    var req = x.op === 'add' ? t.upsert({ habit: x.habit, day: x.day }, { onConflict: 'user_id,habit,day', ignoreDuplicates: true })
+      : x.op === 'del' ? t.delete().eq('habit', x.habit).eq('day', x.day)
+      : t.delete().gte('day', '1900-01-01');
+    function fail() { flushing = false; setSync('Belum tersinkron — dicoba lagi otomatis', true); }
+    req.then(function (res) {
+      if (res.error) return fail();
+      flushing = false;
+      var rest = lsGet(QUEUE, []), i = rest.findIndex(function (y) { return y.op === x.op && y.habit === x.habit && y.day === x.day; });
+      if (i >= 0) rest.splice(i, 1);
+      lsSet(QUEUE, rest);
+      flush();
+    }, fail);
+  }
+  function load() {
+    if (!sb || !user) return Promise.resolve();
+    return sb.from('checkins').select('habit,day').gte('day', dayKey(WEEKS * 7 + 7)).then(function (res) {
+      if (res.error) { setSync('Gagal memuat — memakai data di perangkat', true); return; }
+      var fresh = {};
+      res.data.forEach(function (r) { fresh[r.habit + '|' + r.day] = 1; });
+      lsGet(QUEUE, []).forEach(function (x) { fresh = applyOp(fresh, x); });   /* unsynced changes win */
+      rows = fresh; lsSet(CACHE, rows);
+      refreshAll();
+    });
+  }
+  /* re-render from `rows`; never in the middle of a celebration */
+  var pendingRefresh = false;
+  function refreshAll() {
+    if (app.classList.contains('celebrating') || holdKey) { pendingRefresh = true; return; }
+    pendingRefresh = false;
+    derive(); renderCards(); syncAll();
+  }
+
+  /* ───────── login: one email code per device, then the session persists ───────── */
+  function showApp(on) {
+    $('login').hidden = on; app.hidden = !on; $('logoutBtn').hidden = !on;
+  }
+  function loginMsg(t, err) { var m = $('loginMsg'); m.textContent = t || ''; m.classList.toggle('err', !!err); }
+  function setUser(u) {
+    var prev = user && user.id;
+    user = u || null;
+    if (!user) { showApp(false); return; }
+    showApp(true);
+    if (prev !== user.id) load().then(flush);
+  }
+  var pendingEmail = '';
+  function bootLive() {
+    rows = lsGet(CACHE, {});
+    derive();
+    if (!window.supabase) { showApp(true); setSync('Offline — perubahan disimpan di perangkat', true); return; }
+    sb = window.supabase.createClient(SUPA_URL, SUPA_KEY, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } });
+    app.hidden = true;
+    sb.auth.getSession().then(function (r) { setUser(r.data.session && r.data.session.user); });
+    sb.auth.onAuthStateChange(function (_e, session) { setUser(session && session.user); });
+
+    $('emailForm').addEventListener('submit', function (e) {
+      e.preventDefault();
+      var email = $('email').value.trim(), btn = e.target.querySelector('button');
+      if (!email) return;
+      btn.disabled = true; loginMsg('Mengirim…');
+      sb.auth.signInWithOtp({ email: email, options: { emailRedirectTo: location.origin + location.pathname } }).then(function (r) {
+        btn.disabled = false;
+        if (r.error) { loginMsg(r.error.message, true); return; }
+        pendingEmail = email;
+        $('emailForm').hidden = true; $('codeForm').hidden = false; $('code').focus();
+        loginMsg('Kode terkirim ke ' + email + '. Masukkan kodenya di sini.');
+      });
+    });
+    $('codeForm').addEventListener('submit', function (e) {
+      e.preventDefault();
+      var btn = e.target.querySelector('button[type=submit]');
+      btn.disabled = true; loginMsg('Memeriksa…');
+      sb.auth.verifyOtp({ email: pendingEmail, token: $('code').value.trim(), type: 'email' }).then(function (r) {
+        btn.disabled = false;
+        if (r.error) { loginMsg('Kode salah atau sudah kedaluwarsa.', true); return; }
+        loginMsg('');
+      });
+    });
+    $('backBtn').addEventListener('click', function () {
+      $('codeForm').hidden = true; $('emailForm').hidden = false; loginMsg(''); $('email').focus();
+    });
+    $('logoutBtn').addEventListener('click', function () {
+      try { localStorage.removeItem(CACHE); localStorage.removeItem(QUEUE); } catch (e) {}
+      rows = {}; sb.auth.signOut();
+    });
+    window.addEventListener('online', flush);
+    document.addEventListener('visibilitychange', function () { if (!document.hidden) load().then(flush); });
+  }
+
+  /* ───────── countdown ───────── */
+  function cdInfo() {
+    var n = now(), c = count(), pending = HABITS.filter(function (h) { return !S.done[h.key]; }).map(function (h) { return h.name; });
+    var target = new Date(n); target.setHours(21, 0, 0, 0);
+    var midnight = new Date(n); midnight.setHours(24, 0, 0, 0);
+    var off = n >= target;
+    app.classList.toggle('off', off);
+    if (c === 4) return off
+      ? { tone: 'done', label: 'Semua beres hari ini', big: 'Sampai besok.', mono: false, sub: 'Hari berganti dalam ' + fmt(midnight - n) }
+      : { tone: 'done', label: 'Semua beres hari ini', big: fmt(target - n), mono: true, sub: 'Gadget off dalam waktu segitu. Nikmati malamnya.' };
+    if (off) return { tone: 'off', label: 'Sudah lewat 21.00', big: 'Gadget off. Sampai besok.', mono: false, sub: 'Hari berganti dalam ' + fmt(midnight - n) + ' · masih bisa check-in' };
+    if (target - n <= 30 * 60000) return { tone: 'urgent', label: 'Gadget off dalam', big: fmt(target - n), mono: true, sub: joinNames(pending) + ' belum. Sekarang atau besok.' };
+    if (n.getHours() >= 19) return { tone: 'warm', label: 'Gadget off dalam', big: fmt(target - n), mono: true, sub: joinNames(pending) + ' belum.' };
+    return { tone: 'calm', label: 'Gadget off dalam', big: fmt(target - n), mono: true, sub: (4 - c) + ' habit lagi · deadline pribadi 21.00' };
+  }
+  function renderCountdown() {
+    var cd = cdInfo(), big = $('cdBig');
+    $('cd').dataset.tone = cd.tone;
+    $('cdLabel').textContent = cd.label;
+    big.textContent = cd.big;
+    big.className = 'cd-big ' + (cd.mono ? 'mono' : 'txt');
+    $('cdSub').querySelector('.new').textContent = cd.sub;
+    var n = now();
+    $('date').textContent = DAYS[n.getDay()] + ', ' + n.getDate() + ' ' + MONTHS[n.getMonth()];
+  }
+
+  /* ───────── progress ───────── */
+  function renderSegs() {
+    $('segs').innerHTML = HABITS.map(function (h) {
+      return '<div class="seg" data-key="' + h.key + '" style="' + colorVars(h.color) + '"><div class="fill"></div></div>';
+    }).join('');
+  }
+  function syncProgress() {
+    var c = count();
+    $('roll').querySelector('.new').textContent = c;
+    $('note').textContent = c === 4 ? 'Kamu muncul hari ini.' : 'Konsisten, bukan intens.';
+    HABITS.forEach(function (h) { document.querySelector('.seg[data-key="' + h.key + '"]').classList.toggle('on', !!S.done[h.key]); });
+  }
+
+  /* ───────── cards ───────── */
+  function renderCards() {
+    var dow = (now().getDay() + 6) % 7; /* Senin = 0 */
+    $('cards').innerHTML = HABITS.map(function (h, idx) {
+      var cells = '';
+      for (var w = 0; w < WEEKS; w++) for (var r = 0; r < 7; r++) {
+        var ago = (WEEKS - 1 - w) * 7 + (dow - r), cls = 'cell';
+        if (ago < 0) cls += ' future';
+        else if (ago === 0) cls += ' today';
+        else if (ago === 1) cls += ' yest';
+        else if (wasDone(idx, ago)) cls += ' on';
+        /* light-up sweep starts under the button (right) and runs left */
+        cells += '<div class="' + cls + '" style="--wd:' + ((WEEKS - 1 - w) * 8 + r * 4) + 'ms"></div>';
+      }
+      return '<section class="card" data-key="' + h.key + '" style="' + colorVars(h.color) + '">' +
+        '<div class="head">' +
+          '<div class="ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="' + h.icon + '"/></svg></div>' +
+          '<div class="meta"><div class="nm"><span class="name disp">' + h.name + '</span><span class="badge">Selesai</span></div>' +
+          '<div class="desc">' + h.desc + '</div></div>' +
+          '<div class="orbwrap"><span class="slot"></span><span class="gather">' + GATHER + '</span>' +
+            '<button class="hold" type="button">' +
+              '<span class="orb">' +
+                '<svg class="ring" width="64" height="64" viewBox="3 3 54 54" aria-hidden="true">' +
+                  '<circle cx="30" cy="30" r="25" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="4"/>' +
+                  '<circle class="prog" cx="30" cy="30" r="25" fill="none" stroke-width="4" stroke-linecap="round" transform="rotate(-90 30 30)"/>' +
+                  '<circle class="tip" cx="30" cy="30" r="25" fill="none" stroke-width="4" stroke-linecap="round" transform="rotate(-90 30 30)"/>' +
+                '</svg>' +
+                '<span class="inner"><span class="lbl">Tahan</span><span class="lbl2">Terus…</span>' +
+                  '<svg class="gchk" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#8B8B98" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>' +
+                  '<svg class="chk" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0B0B0F" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>' +
+                '</span>' +
+              '</span>' +
+            '</button>' +
+          '</div>' +
+        '</div>' +
+        '<div class="grid" aria-hidden="true">' + cells + '</div>' +
+        '<div class="foot"><span>18 minggu terakhir</span>' +
+          '<button class="iconbtn" type="button" aria-label="Opsi ' + h.name + '"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg></button>' +
+        '</div>' +
+        '<div class="menu"></div>' +
+      '</section>';
+    }).join('');
+    HABITS.forEach(function (h) { bindCard(h.key); syncCard(h.key); });
+  }
+
+  function syncCard(key) {
+    var card = cardEl(key), h = HABITS[idxOf(key)], done = !!S.done[key];
+    card.classList.toggle('done', done);
+    card.classList.toggle('menu-open', S.menu === key);
+    card.querySelector('.hold').setAttribute('aria-label', done ? h.name + ' sudah selesai hari ini' : 'Tahan untuk check-in ' + h.name);
+    card.querySelector('.cell.yest').classList.toggle('on', !!S.yest[key]);
+    card.querySelector('.menu').innerHTML =
+      (done ? '<button class="ghost" type="button" data-act="undo">Batalkan hari ini</button>' : '') +
+      '<button class="ghost" type="button" data-act="yest">' + (S.yest[key] ? 'Batalkan kemarin' : 'Tandai kemarin selesai') + '</button>';
+  }
+  function syncAll() { HABITS.forEach(function (h) { syncCard(h.key); }); syncProgress(); renderCountdown(); }
+
+  /* ───────── stage set-up: hero starts exactly on the card's button, flies to centre stage ───────── */
+  function buildSparks() {
+    $('sfxTop').innerHTML = sparkHTML(SPARKS_TOP);
+  }
+  function sparkHTML(list) {
+    return list.map(function (s) {
+      var r = Math.round(Math.atan2(s[3], s[2]) * 180 / Math.PI + 90);
+      var bg = s[6] ? 'linear-gradient(to bottom,#FFFFFF 0%,#FFFFFF 38%,var(--c) 62%,var(--c) 100%)'
+                    : 'radial-gradient(circle,#FFFFFF 0%,#FFFFFF 36%,var(--c) 48%,var(--c) 100%)';
+      return '<span class="sp" style="--ox:' + s[0] + 'px;--oy:' + s[1] + 'px;--x:' + s[2] + 'px;--y:' + s[3] + 'px;--w:' + s[4] + 'px;--h:' + s[5] +
+        'px;--r:' + r + 'deg;--bg:' + bg + ';--dl:' + s[7] + 'ms;--dur:' + s[8] + 'ms;--g:' + s[9] + 'px"></span>';
+    }).join('');
+  }
+  function setStage(key, viewW, viewH, originX) {
+    var h = HABITS[idxOf(key)], orb = cardEl(key).querySelector('.orbwrap').getBoundingClientRect();
+    var sx = orb.left + orb.width / 2, sy = orb.top + orb.height / 2;
+    var tx = originX + 195, ty = Math.round(viewH * 0.3);
+    stage.setAttribute('style', colorVars(h.color) + ';--sx:' + sx + 'px;--sy:' + sy + 'px;--tx:' + tx + 'px;--ty:' + ty +
+      'px;--hx:' + (tx - sx) + 'px;--hy:' + (ty - sy) + 'px');
+    var idx = idxOf(key), c = count(), n = now(), wdays = '';
+    $('pname').textContent = h.name;
+    $('pOld').textContent = c; $('pNew').textContent = c + 1;
+    for (var ago = 6, i = 0; ago >= 0; ago--, i++) {
+      var d = new Date(n); d.setDate(d.getDate() - ago);
+      var cls = ago === 0 ? 'today' : (wasDone(idx, ago) ? 'on' : '');
+      wdays += '<div class="wd' + (ago === 0 ? ' is-today' : '') + '" style="--i:' + i + '"><span class="wl">' + DAYS[d.getDay()].slice(0, 3) + '</span><span class="wc ' + cls + '">' + (ago === 0 ? '<span class="sfx">' + sparkHTML(SPARKS_WK) + '</span>' : '') + '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0B0B0F" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span></div>';
+    }
+    $('week').innerHTML = wdays;
+  }
+
+  /* ───────── haptics ─────────
+     Android: navigator.vibrate. iOS 18+ Safari: clicking the <label> of an <input type="checkbox" switch>
+     produces the system switch haptic. No-ops where unsupported; never in capture/static renders. */
+  var hapticLabel = null;
+  function setupHaptics() {
+    if (MODE !== 'live') return;
+    try {
+      var l = document.createElement('label'), i = document.createElement('input');
+      l.className = 'haptic'; l.setAttribute('aria-hidden', 'true');
+      i.type = 'checkbox'; i.setAttribute('switch', ''); i.tabIndex = -1;
+      l.appendChild(i); document.body.appendChild(l); hapticLabel = l;
+    } catch (e) {}
+  }
+  function tickIOS() {
+    if (!hapticLabel) return;
+    try {
+      var keep = document.activeElement;
+      hapticLabel.click();
+      if (keep && keep.focus && keep !== document.activeElement) keep.focus({ preventScroll: true });
+    } catch (e) {}
+  }
+  function haptic(kind) {
+    if (MODE !== 'live') return;
+    try { if (navigator.vibrate) navigator.vibrate(kind === 'done' ? [18, 50, 30] : (kind === 'tick' ? 5 : 8)); } catch (e) {}
+    tickIOS();
+    if (kind === 'done') setTimeout(tickIOS, 90);
+  }
+
+  /* ───────── hold-to-complete ───────── */
+  var tickT = [];
+  function clearTicks() { tickT.forEach(clearTimeout); tickT = []; }
+  var holdT = null, holdKey = null, celebT = null;
+  function beginHold(key, e) {
+    if (S.done[key] || (e && e.button !== 0)) return;
+    var card = cardEl(key), prog = card.querySelector('.prog');
+    try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) {}
+    if (S.menu) { var m = S.menu; S.menu = null; syncCard(m); }
+    prog.style.transition = ''; prog.style.strokeDashoffset = '';
+    app.style.setProperty('--hold', HOLD + 'ms');
+    card.classList.add('holding');
+    holdKey = key;
+    haptic('start');
+    clearTicks();
+    tickT = [setTimeout(function () { haptic('tick'); }, HOLD / 3), setTimeout(function () { haptic('tick'); }, HOLD * 2 / 3)];
+    clearTimeout(holdT);
+    holdT = setTimeout(function () { complete(key, 'pointer'); }, HOLD);
+  }
+  function cancelHold(key) {
+    if (holdKey !== key) return;
+    clearTimeout(holdT); clearTicks(); holdKey = null;
+    var card = cardEl(key), prog = card.querySelector('.prog');
+    var cur = parseFloat(getComputedStyle(prog).strokeDashoffset);   /* where the (eased) arc actually is */
+    if (!isFinite(cur)) cur = CIRC;
+    card.classList.remove('holding');
+    prog.style.transition = 'none';
+    prog.style.strokeDashoffset = cur;
+    prog.getBoundingClientRect();
+    prog.style.transition = 'stroke-dashoffset 260ms ease-out';
+    prog.style.strokeDashoffset = CIRC;
+    setTimeout(function () { if (holdKey !== key) { prog.style.transition = ''; prog.style.strokeDashoffset = ''; } }, 320);
+  }
+  function endCelebration() {
+    app.classList.remove('celebrating');
+    document.querySelectorAll('.card.celebrating,.card.holding').forEach(function (c) { if (c.dataset.key !== holdKey) c.classList.remove('celebrating', 'holding'); });
+    document.querySelectorAll('.seg.pop').forEach(function (s) { s.classList.remove('pop'); });
+    if (pendingRefresh && !holdKey) refreshAll();
+  }
+  /* via: 'pointer' (hold already played) | 'key' (instant data, short visual charge) | 'capture' */
+  function complete(key, via) {
+    clearTimeout(holdT); clearTicks(); holdKey = null;
+    if (S.done[key]) return;
+    var prevCount = count(), prevSub = $('cdSub').querySelector('.new').textContent;
+    clearTimeout(celebT); endCelebration(); void app.offsetWidth;
+    if (via !== 'capture') {
+      var ar = app.getBoundingClientRect();
+      setStage(key, window.innerWidth, window.innerHeight, ar.left);
+    }
+    S.done[key] = true; S.menu = null;
+    persist('add', key, dayKey(0));
+    var card = cardEl(key), lead = via === 'pointer' ? 0 : (via === 'key' ? KEY_LEAD : HOLD);
+    app.style.setProperty('--hold', (via === 'key' ? KEY_LEAD : HOLD) + 'ms');
+    app.style.setProperty('--c0', lead + 'ms');
+    $('roll').querySelector('.old').textContent = prevCount;
+    $('cdSub').querySelector('.old').textContent = prevSub;
+    syncAll();
+    if (via === 'pointer') card.classList.remove('holding'); else card.classList.add('holding');
+    card.classList.add('celebrating');
+    document.querySelector('.seg[data-key="' + key + '"]').classList.add('pop');
+    app.classList.add('celebrating');
+    if (via !== 'capture') {
+      haptic('done');
+      chime(idxOf(key));
+      celebT = setTimeout(endCelebration, lead + CELEBRATION);
+    }
+  }
+
+  var ac = null;
+  function chime(i) {
+    try {
+      var AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
+      ac = ac || new AC();
+      var base = [523.25, 587.33, 659.25, 698.46][i] || 523.25;
+      /* rising notes on the visual beats: ignite, card lights, today's cell */
+      [[0.68, 1, 'sine'], [1.64, 1.25, 'sine'], [2.32, 1.5, 'triangle']].forEach(function (n) {
+        var o = ac.createOscillator(), g = ac.createGain(), at = ac.currentTime + n[0];
+        o.type = n[2]; o.frequency.value = base * n[1];
+        g.gain.setValueAtTime(0.0001, at);
+        g.gain.exponentialRampToValueAtTime(0.14, at + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.0001, at + 0.5);
+        o.connect(g); g.connect(ac.destination); o.start(at); o.stop(at + 0.55);
+      });
+    } catch (e) {}
+  }
+
+  function bindCard(key) {
+    var card = cardEl(key), btn = card.querySelector('.hold');
+    btn.addEventListener('pointerdown', function (e) { beginHold(key, e); });
+    ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(function (ev) { btn.addEventListener(ev, function () { cancelHold(key); }); });
+    btn.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+    btn.addEventListener('keydown', function (e) {
+      if ((e.key === ' ' || e.key === 'Enter') && !S.done[key]) { e.preventDefault(); complete(key, 'key'); }
+    });
+    card.querySelector('.iconbtn').addEventListener('click', function () {
+      var prev = S.menu; S.menu = S.menu === key ? null : key;
+      if (prev && prev !== key) syncCard(prev);
+      syncCard(key);
+    });
+    card.querySelector('.menu').addEventListener('click', function (e) {
+      var act = e.target.getAttribute('data-act'); if (!act) return;
+      if (act === 'undo') { S.done[key] = false; persist('del', key, dayKey(0)); card.classList.remove('celebrating', 'holding'); }
+      if (act === 'yest') { S.yest[key] = !S.yest[key]; persist(S.yest[key] ? 'add' : 'del', key, dayKey(1)); }
+      S.menu = null; syncAll();
+    });
+  }
+
+  /* ───────── reset ───────── */
+  function renderReset() {
+    var z = $('resetZone');
+    z.innerHTML = S.confirming
+      ? '<div class="confirm"><span>Hapus semua riwayat?</span><button class="ghost" type="button" data-r="no">Batal</button><button class="ghost danger" type="button" data-r="yes">Hapus</button></div>'
+      : '<button class="ghost" type="button" style="color:#8B8B98" data-r="ask">Reset semua riwayat…</button>';
+  }
+  $('resetZone').addEventListener('click', function (e) {
+    var r = e.target.getAttribute('data-r'); if (!r) return;
+    if (r === 'ask') S.confirming = true;
+    if (r === 'no') S.confirming = false;
+    if (r === 'yes') {
+      S.confirming = false; S.wiped = true; S.menu = null;
+      persist('wipe');
+      HABITS.forEach(function (h) { S.done[h.key] = false; S.yest[h.key] = false; });
+      renderCards(); syncAll();
+    }
+    renderReset();
+    if (r !== 'yes') { var b = $('resetZone').querySelector('button'); if (b) b.focus(); }
+  });
+
+  /* ───────── boot ───────── */
+  renderSegs();
+  setupHaptics();
+  if (LIVE) { rows = lsGet(CACHE, {}); derive(); }
+  renderCards();
+  syncAll();
+  renderReset();
+  buildSparks();
+
+  if (MODE === 'capture' && cardEl(CAP_KEY)) {
+    /* headless screenshots ignore scroll, so lift the page so the card sits at the bottom of a 390×844 frame */
+    var r = cardEl(CAP_KEY).getBoundingClientRect();
+    var lift = Math.max(0, r.bottom + window.scrollY - 844 + 6);
+    app.style.marginTop = -lift + 'px';
+    document.body.style.overflow = 'hidden';
+    stage.classList.add('capture');
+    setStage(CAP_KEY, 390, 844, 0);
+    cardEl(CAP_KEY).classList.add('holding');
+    complete(CAP_KEY, 'capture');
+    requestAnimationFrame(function () {
+      document.getAnimations().forEach(function (a) { a.pause(); a.currentTime = CAP_T; });
+    });
+  } else if (LIVE) {
+    bootLive();
+    /* tick the countdown; at local midnight rebuild "today" from the data */
+    setInterval(function () { if (dayKey(0) !== today) refreshAll(); renderCountdown(); }, 1000);
+    if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(function () {});
+  }
+})();
+</script>
+</body>
+</html>

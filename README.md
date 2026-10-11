@@ -16,6 +16,7 @@
 | | Project | Summary | Type | Stack |
 |:---:|---|---|---|---|
 | <img src="Yaping/docs/icon.png" width="48" alt="Yaping"> | **[Yaping](Yaping/)** | Free, open-source voice dictation for macOS. Press a shortcut, speak, and clean punctuated text appears wherever your cursor is. Supports Gemini, Groq and fully offline whisper.cpp. | Shipped app · v1.0 | Swift · AppKit |
+| <img src="ShowUp-Web/docs/icon.png" width="48" alt="ShowUp"> | **[ShowUp](ShowUp-Web/)** | A daily check-in app for four fixed habits. Hold to check in, see an 18-week consistency heatmap instead of streaks, with a personal 21:00 "devices off" countdown. Installable PWA that syncs between phone and laptop. | Shipped web app · PWA | HTML · CSS · JS · Supabase |
 | ⚡ | **[ARUS](ARUS/)** | Energy-Aware Compute Intelligence. AI-driven workload placement that predicts runtime and energy per node and recommends the most energy-efficient machine for each job. | Product concept & pitch deck | Python · FastAPI · PostgreSQL · scikit-learn |
 
 ### [Yaping](Yaping/)
@@ -28,6 +29,17 @@ A lightweight menu-bar app that turns speech into ready-to-send text in any appl
 - API keys stored in the macOS Keychain
 
 📖 [Read more](Yaping/README.md) · 🇮🇩 [Bahasa Indonesia](Yaping/README.id.md) · [The story behind it](Yaping/docs/JOURNEY.md)
+
+### [ShowUp](ShowUp-Web/)
+
+A deliberately small personal consistency tracker: four fixed habits, one deliberate gesture, no streak counters.
+
+- Hold-to-check-in with a staged celebration that shows the day's count and the last seven days
+- 18-week heatmap per habit, so a missed day is one empty square instead of a reset
+- Countdown to a personal 21:00 "devices off" deadline
+- Installable PWA with offline queue, synced through Supabase with Row Level Security
+
+🚀 [Open the app](https://mnaufalzaki.github.io/Project-Portfolio/ShowUp-Web/) · 📖 [Read more](ShowUp-Web/README.md) · 🇮🇩 [Bahasa Indonesia](ShowUp-Web/README.id.md)
 
 ### [ARUS](ARUS/)
 
@@ -44,8 +56,9 @@ A decision engine that shifts workload placement from "whichever machine is free
 
 ```
 Project-Portfolio/
-├── ARUS/      # Energy-aware workload placement: concept, design & pitch deck
-└── Yaping/    # macOS voice dictation app: source code, build scripts & docs
+├── ARUS/        # Energy-aware workload placement: concept, design & pitch deck
+├── ShowUp-Web/  # Daily check-in PWA: app, Supabase schema & docs
+└── Yaping/      # macOS voice dictation app: source code, build scripts & docs
 ```
 
 Each project is self-contained in its own folder with its own README.
