@@ -39,7 +39,7 @@ ShowUp berjalan di browser HP maupun laptop, dapat dipasang di Home Screen sebag
 - **Konsistensi, bukan streak.** Setiap kebiasaan memiliki heatmap 18 minggu. Hari yang terlewat hanya berupa satu kotak kosong, bukan penghitung yang kembali ke nol.
 - **Tenggat pribadi.** Header menghitung mundur ke pukul 21.00, waktu gadget off. Tampilannya menghangat mulai 19.00 bila masih ada yang belum selesai, menjadi mendesak pada 30 menit terakhir, dan berganti menjadi "Sampai besok" setelahnya. Pergantian hari kalender tetap pukul 00.00 waktu lokal.
 - **HP dan laptop, satu sumber data.** PWA yang dapat dipasang dengan cache app shell. Setiap perubahan disimpan ke antrean lokal terlebih dahulu dan disinkronkan ketika koneksi tersedia.
-- **Privat sejak awal.** Masuk sekali per perangkat dengan kode enam digit dari email, setelah itu sesi tetap aktif. Row Level Security membatasi setiap baris data hanya untuk pemiliknya.
+- **Privat sejak awal.** Masuk sekali per perangkat dengan kode atau link dari email, setelah itu sesi tetap aktif. Row Level Security membatasi setiap baris data hanya untuk pemiliknya.
 - **Getaran bila platform mendukung.** `navigator.vibrate` di Android dan teknik haptic switch iOS 18 di Safari, keduanya bersifat best-effort.
 - **Aksesibel.** Check-in lewat keyboard (Space atau Enter pada ring yang terfokus), dukungan `prefers-reduced-motion`, target sentuh 44 px, dan ukuran teks minimal 12 px.
 
@@ -101,7 +101,7 @@ checkins (
 ## Menjalankan sendiri
 
 1. Buat project Supabase lalu jalankan [`supabase/schema.sql`](supabase/schema.sql) di SQL Editor.
-2. Di **Authentication → Email Templates → Magic Link**, tambahkan kode ke isi email, misalnya `Kode masuk: {{ .Token }}`. Kode (bukan hanya link) memungkinkan login di dalam aplikasi yang terpasang di iOS, karena penyimpanannya terpisah dari Safari.
+2. Login bekerja dengan email bawaan Supabase: ketik kodenya bila email memuat kode, atau tekan lama link di email, salin, lalu tempel di aplikasi. Menempel link penting di iOS, karena penyimpanan aplikasi yang terpasang terpisah dari Safari. Bila memakai SMTP sendiri, template **Authentication → Emails → Magic link or OTP** dapat diubah untuk menampilkan `{{ .Token }}` sebagai kode enam digit.
 3. Di **Authentication → URL Configuration**, isi Site URL dengan alamat tempat aplikasi di-hosting.
 4. Isi konstanta `SUPA_URL` dan `SUPA_KEY` di `index.html` dengan URL project dan publishable (anon) key. Publishable key aman berada di kode klien; akses dijaga oleh Row Level Security.
 5. Hosting folder ini di layanan statis mana pun (di sini memakai GitHub Pages). Setelah login pertama, matikan pendaftaran pengguna baru di Supabase agar orang lain tidak dapat membuat akun.

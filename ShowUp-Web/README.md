@@ -39,7 +39,7 @@ It runs in the browser on a phone or a laptop, installs to the home screen as a 
 - **Consistency instead of streaks.** Each habit shows an 18-week heatmap. A missed day is one empty square, not a counter reset to zero.
 - **A personal deadline.** The header counts down to 21:00, the "devices off" time. It warms from 19:00 when something is still open, turns urgent in the last 30 minutes, and switches to a calm "see you tomorrow" afterwards. The calendar day still rolls over at 00:00 local time.
 - **Phone and laptop, one source of truth.** Installable PWA with an app-shell cache. Every change is written to a local queue first and synced when a connection is available.
-- **Private by design.** One sign-in per device with a six-digit email code, after which the session persists. Row Level Security limits every row to its owner.
+- **Private by design.** One sign-in per device with an email code or link, after which the session persists. Row Level Security limits every row to its owner.
 - **Haptics where the platform allows.** `navigator.vibrate` on Android and the iOS 18 switch-haptic technique in Safari, both best-effort.
 - **Accessible.** Keyboard check-in (Space or Enter on a focused ring), `prefers-reduced-motion` support, 44 px touch targets and a 12 px minimum text size.
 
@@ -101,7 +101,7 @@ checkins (
 ## Self-hosting
 
 1. Create a Supabase project and run [`supabase/schema.sql`](supabase/schema.sql) in the SQL Editor.
-2. In **Authentication → Email Templates → Magic Link**, add the code to the message body, for example `Your code: {{ .Token }}`. A code (rather than only a link) is what lets you sign in inside the installed app on iOS, whose storage is separate from Safari.
+2. Sign-in works with Supabase's default emails: type the code if the email contains one, or long-press the link, copy it and paste it into the app. Pasting matters on iOS, where the installed app's storage is separate from Safari. With a custom SMTP provider you can edit **Authentication → Emails → Magic link or OTP** to show `{{ .Token }}` as a six-digit code.
 3. In **Authentication → URL Configuration**, set the Site URL to where you host the app.
 4. Put your project URL and publishable (anon) key in the `SUPA_URL` and `SUPA_KEY` constants in `index.html`. The publishable key is safe to ship in client code; access is enforced by Row Level Security.
 5. Host the folder on any static host (GitHub Pages is used here). After your first sign-in, disable new sign-ups in Supabase so no one else can create an account.

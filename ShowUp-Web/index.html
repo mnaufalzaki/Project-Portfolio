@@ -382,8 +382,8 @@ body{padding-top:env(safe-area-inset-top)}
     <button class="primary" type="submit">Kirim kode</button>
   </form>
   <form id="codeForm" hidden>
-    <label for="code">Kode dari email</label>
-    <input class="field code" id="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6,10}" maxlength="10" required>
+    <label for="code">Kode atau link dari email</label>
+    <input class="field" id="code" autocomplete="one-time-code" autocapitalize="off" spellcheck="false" placeholder="123456 atau tempel link" required>
     <button class="primary" type="submit">Masuk</button>
     <button class="linkbtn" type="button" id="backBtn">Ganti email</button>
   </form>
@@ -644,18 +644,26 @@ body{padding-top:env(safe-area-inset-top)}
         if (r.error) { loginMsg(r.error.message, true); return; }
         pendingEmail = email;
         $('emailForm').hidden = true; $('codeForm').hidden = false; $('code').focus();
-        loginMsg('Kode terkirim ke ' + email + '. Masukkan kodenya di sini.');
+        loginMsg('Cek email ' + email + '. Ketik kodenya, atau tekan lama link di email → Salin, lalu tempel di sini.');
       });
     });
     $('codeForm').addEventListener('submit', function (e) {
       e.preventDefault();
       var btn = e.target.querySelector('button[type=submit]');
       btn.disabled = true; loginMsg('Memeriksa…');
-      var token = $('code').value.trim();
-      /* first sign-in may arrive via the "Confirm signup" template, so accept a signup code too */
-      sb.auth.verifyOtp({ email: pendingEmail, token: token, type: 'email' }).then(function (r) {
-        return r.error ? sb.auth.verifyOtp({ email: pendingEmail, token: token, type: 'signup' }) : r;
-      }).then(function (r) {
+      var token = $('code').value.trim(), attempt;
+      if (/token=/.test(token)) {
+        /* a pasted sign-in link: verify its token hash here, so it works inside the installed app too */
+        var u; try { u = new URL(token); } catch (err) { u = null; }
+        var hash = u && u.searchParams.get('token'), type = (u && u.searchParams.get('type')) || 'magiclink';
+        attempt = hash ? sb.auth.verifyOtp({ token_hash: hash, type: type }) : Promise.resolve({ error: true });
+      } else {
+        /* a typed code; the first sign-in may come from the "Confirm signup" email, so accept that type too */
+        attempt = sb.auth.verifyOtp({ email: pendingEmail, token: token, type: 'email' }).then(function (r) {
+          return r.error ? sb.auth.verifyOtp({ email: pendingEmail, token: token, type: 'signup' }) : r;
+        });
+      }
+      attempt.then(function (r) {
         btn.disabled = false;
         if (r.error) { loginMsg('Kode salah atau sudah kedaluwarsa.', true); return; }
         loginMsg('');
