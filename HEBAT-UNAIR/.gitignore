@@ -1,0 +1,22 @@
+# Local environment and generated artifacts
+.DS_Store
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.cache/
+.session/
+dist/
+build/
+*.egg-info/
+.env
+.env.*
+!.env.example
+cookies.env
+cookies.txt
+runtime.json
+.mcp.json
+*.log
+# Downloaded campus documents and personal outputs never belong in source
+outputs/
+artifacts/

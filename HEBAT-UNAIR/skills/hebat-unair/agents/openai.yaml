@@ -1,0 +1,11 @@
+interface:
+  display_name: "HEBAT UNAIR"
+  short_description: "Prioritas tugas HEBAT cepat dan login Keychain"
+  default_prompt: "Gunakan $hebat-unair untuk langsung membaca prioritas tenggat tugas HEBAT yang belum dikumpulkan."
+dependencies:
+  tools:
+    - type: "mcp"
+      value: "hebat"
+      description: "MCP lokal HEBAT UNAIR untuk membaca akun kampus"
+policy:
+  allow_implicit_invocation: true

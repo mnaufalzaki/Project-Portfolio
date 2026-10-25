@@ -1,0 +1,10 @@
+cookies.env
+cookies.txt
+__pycache__/
+*.pyc
+.env
+.session/
+.venv/
+
+.cache/
+dist/
