@@ -37,21 +37,21 @@ Nama atau singkatan seperti **KBSI, ISIT, AVD, PAP, dan PPL** dicocokkan dengan 
 
 ## Bagaimana komponennya bekerja
 
-```text
-Pertanyaan → agent mengikuti skill → tool MCP → reader → HEBAT
-                                             ↕
-                                   Keychain, cache, dan file lokal
+Agent mengikuti skill untuk memilih tool MCP yang sesuai dengan pertanyaanmu. Tool tersebut menjalankan reader untuk membaca HEBAT atau menggunakan cache yang masih layak. Reader mengembalikan data dan berkas asli; agent kemudian membaca isinya dan menyusun penjelasan beserta tautan sumber.
 
-Hasil terstruktur / berkas → agent membaca dan menjelaskan → jawaban + tautan
-```
+![Alur HEBAT: pertanyaan, agent dan skill, MCP dan reader, lalu penjelasan. Keychain, cache, dan HEBAT mendukung reader.](docs/assets/how-hebat-works.svg)
 
-- **Skill** mengarahkan pemilihan operasi dan cara menjelaskan hasil. Native MCP diutamakan bila tool yang sesuai tersedia.
-- **Server MCP** menyediakan delapan tool yang bisa dipanggil aplikasi agent.
-- **Reader** membaca halaman HEBAT, mengolah kelas/tugas/tanggal/status, serta mengambil dan memeriksa berkas.
-- **Helper** menyediakan operasi CLI dan jalur pengganti ketika diperlukan. Setelah runtime diikat, helper tidak memerlukan CLI Codex.
-- **Cache** mengurangi pembacaan berulang. Berkas lokal diperiksa ukuran, hash, izin, dan kepemilikan akunnya sebelum dipakai ulang. Permintaan pembaruan sumber menggunakan `fresh`.
+[Buka diagram ukuran penuh](docs/assets/how-hebat-works.svg).
 
-Reader menyediakan data dan berkas; penjelasan isi PDF/presentasi dilakukan oleh agent dengan pembaca dokumen yang tersedia. Satu runtime dapat digunakan oleh Codex dan Claude Code, dengan proses MCP masing-masing.
+- **Skill** memandu agent: operasi mana yang dipilih, apa yang perlu dibaca, dan bagaimana menjelaskan hasilnya.
+- **MCP native** adalah jalur pemanggilan tool langsung dari aplikasi agent. **Reader** menjalankan pembacaan kelas, tugas, status, serta berkas materi.
+- **Auth dan Keychain** menangani autentikasi; kredensial dan sesi tetap disimpan di Mac.
+- **Cache dan berkas lokal** mengurangi pembacaan berulang. Berkas diperiksa sebelum dipakai ulang; `fresh` digunakan ketika sumber perlu diperbarui.
+- **Helper Python** menyediakan jalur CLI ketika operasi native tidak tersedia atau belum mencukupi. Keduanya menggunakan logika reader yang sama.
+
+Contohnya, saat kamu meminta **“Baca PDF terbaru KBSI”**, agent memanggil `hebat_material`, reader menemukan dan menyediakan PDF, lalu agent membaca dokumen sebelum menjelaskan isinya dan memberikan tautan lokal. Saat kamu melanjutkan **“Slide 5 maksudnya apa?”**, berkas yang sudah tersedia dapat dipakai kembali.
+
+Satu runtime dapat digunakan oleh Codex dan Claude Code, dengan proses MCP masing-masing. Lihat [arsitektur teknis](docs/ARCHITECTURE.md) untuk rincian komponennya.
 
 ## Pemasangan di Mac
 

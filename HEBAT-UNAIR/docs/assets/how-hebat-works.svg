@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" role="img" aria-labelledby="title desc">
+<title id="title">Alur HEBAT MCP dan Agent Skill</title>
+<desc id="desc">Pengguna bertanya. Agent mengikuti skill dan memanggil MCP native. Reader memakai autentikasi Keychain untuk membaca HEBAT atau memakai cache yang layak. Agent membaca data dan dokumen lalu memberikan penjelasan serta tautan. Pertanyaan lanjutan memakai kembali hasil yang tersedia.</desc>
+<defs><marker id="arrow" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto-start-reverse" markerUnits="userSpaceOnUse"><path d="M0,0 L9,4.5 L0,9" fill="none" stroke="#8cbbff" stroke-width="2"/></marker></defs>
+<rect width="1600" height="900" rx="24" fill="#111827"/>
+<style>text{font-family:Arial,Helvetica,sans-serif}.title{fill:#f3f4f6;font-size:42px;font-weight:700}.sub{fill:#acbad0;font-size:24px}.heading{fill:#f3f4f6;font-size:27px;font-weight:700}.body{fill:#c4cede;font-size:23px}.accent{fill:#8cbbff;font-size:25px;font-weight:700}.small{fill:#acbad0;font-size:21px}.line{fill:none;stroke:#8cbbff;stroke-width:2.5;stroke-linejoin:round;marker-end:url(#arrow)}</style>
+<text class="title" x="60" y="74">Dari pertanyaan ke jawaban yang bersumber</text>
+<text class="sub" x="60" y="118">Skill memandu agent. MCP menghubungkan tool. Reader membaca HEBAT.</text>
+
+<rect x="60" y="265" width="310" height="235" rx="16" fill="#192234" stroke="#59677f" stroke-width="2"/>
+<rect x="450" y="265" width="310" height="235" rx="16" fill="#192234" stroke="#8cbbff" stroke-width="2"/>
+<rect x="840" y="265" width="310" height="235" rx="16" fill="#192234" stroke="#8cbbff" stroke-width="2"/>
+<rect x="1230" y="265" width="310" height="235" rx="16" fill="#192234" stroke="#59677f" stroke-width="2"/>
+<text class="heading" x="215" y="309" text-anchor="middle">1. Kamu bertanya</text>
+<text class="body" x="215" y="361" text-anchor="middle">“Baca PDF terbaru KBSI”</text>
+<text class="body" x="215" y="405" text-anchor="middle">atau cek tugas, tenggat,</text>
+<text class="body" x="215" y="437" text-anchor="middle">dan riwayat pengumpulan</text>
+<text class="heading" x="605" y="309" text-anchor="middle">2. Agent + Skill</text>
+<text class="accent" x="605" y="361" text-anchor="middle">Pahami permintaan</text>
+<text class="body" x="605" y="405" text-anchor="middle">Skill memandu tool</text>
+<text class="body" x="605" y="437" text-anchor="middle">dan bentuk penjelasan</text>
+<text class="heading" x="995" y="309" text-anchor="middle">3. MCP + Reader</text>
+<text class="accent" x="995" y="361" text-anchor="middle">Native tool → reader</text>
+<text class="body" x="995" y="405" text-anchor="middle">Ambil data atau berkas;</text>
+<text class="body" x="995" y="437" text-anchor="middle">periksa akses dan hasil</text>
+<text class="heading" x="1385" y="309" text-anchor="middle">4. Baca &amp; jelaskan</text>
+<text class="accent" x="1385" y="361" text-anchor="middle">Agent membaca isinya</text>
+<text class="body" x="1385" y="405" text-anchor="middle">Penjelasan, batas hasil,</text>
+<text class="body" x="1385" y="437" text-anchor="middle">dan tautan sumber/PDF</text>
+<path class="line" d="M374,382 H441"/>
+<path class="line" d="M764,382 H831"/>
+<path class="line" d="M1154,382 H1221"/>
+<path class="line" d="M1385,260 V204 Q1385,190 1371,190 H619 Q605,190 605,204 V252"/>
+<text class="small" x="1000" y="173" text-anchor="middle">Pertanyaan lanjutan → pakai ulang hasil atau berkas yang tersedia</text>
+<rect x="450" y="650" width="310" height="155" rx="16" fill="#192234" stroke="#59677f" stroke-width="2"/>
+<rect x="840" y="650" width="310" height="155" rx="16" fill="#192234" stroke="#59677f" stroke-width="2"/>
+<rect x="1230" y="650" width="310" height="155" rx="16" fill="#192234" stroke="#59677f" stroke-width="2"/>
+<text class="heading" x="605" y="693" text-anchor="middle">Auth + Keychain</text>
+<text class="body" x="605" y="738" text-anchor="middle">Kredensial dan sesi</text>
+<text class="body" x="605" y="771" text-anchor="middle">tetap di Mac</text>
+<text class="heading" x="995" y="693" text-anchor="middle">Cache + berkas lokal</text>
+<text class="body" x="995" y="738" text-anchor="middle">Kurangi baca berulang;</text>
+<text class="body" x="995" y="771" text-anchor="middle">fresh memeriksa sumber</text>
+<text class="heading" x="1385" y="693" text-anchor="middle">HEBAT UNAIR</text>
+<text class="body" x="1385" y="738" text-anchor="middle">Halaman dan file asli</text>
+<text class="body" x="1385" y="771" text-anchor="middle">Akses baca saja</text>
+<path class="line" d="M605,642 V568 H900 V510"/>
+<path class="line" d="M995,510 V638" marker-start="url(#arrow)"/>
+<path class="line" d="M1385,642 V568 H1090 V510" marker-start="url(#arrow)"/>
+<text class="small" x="60" y="855" text-anchor="start">Helper Python tersedia bila native tool tidak mencukupi; memakai reader yang sama.</text>
+</svg>
