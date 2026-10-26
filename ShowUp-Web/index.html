@@ -102,6 +102,23 @@ body{padding-top:env(safe-area-inset-top)}
 .card.done .badge{opacity:1;transform:none}
 .desc{font-size:13px;line-height:1.35;color:#A1A1AE}
 
+/* SQ3R reference, tucked into the Study card */
+.sq3r{border-top:1px solid rgba(255,255,255,.07)}
+.sq3r summary{display:flex;align-items:center;gap:8px;min-height:44px;color:var(--c);font-size:13px;font-weight:600;cursor:pointer;list-style:none}
+.sq3r summary::-webkit-details-marker{display:none}
+.sq3r summary::before{content:'›';font-size:20px;transition:transform 160ms}
+.sq3r[open] summary::before{transform:rotate(90deg)}
+.sq3r summary:focus-visible{outline:2px solid var(--c);outline-offset:2px;border-radius:4px}
+.sq3r ol{margin:0;padding:0 0 0 20px;display:flex;flex-direction:column;gap:14px}
+.sq3r li{padding-left:2px;font-size:13px;line-height:1.5;color:#A1A1AE}
+.sq3r li::marker{color:var(--c);font-weight:600}
+.sq3r-step{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+.sq3r-step strong{color:#EDEDF2;font-weight:600}
+.sq3r-step span{flex-shrink:0;color:var(--c);font-size:12px}
+.sq3r p{margin:4px 0 0}
+.sq3r .sq3r-total{margin:16px 0 0;padding-top:12px;border-top:1px solid rgba(255,255,255,.07);font-size:13px;line-height:1.5;color:#A1A1AE}
+.sq3r-total strong{display:block;color:#EDEDF2;font-weight:600}
+
 .orbwrap{position:relative;width:64px;height:64px;flex-shrink:0}
 .hold{position:absolute;inset:0;width:64px;height:64px;padding:0;border:0;border-radius:50%;background:transparent;cursor:pointer;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;z-index:2}
 .hold:focus-visible{outline:2px solid #EDEDF2;outline-offset:4px}
@@ -731,6 +748,18 @@ body{padding-top:env(safe-area-inset-top)}
   }
 
   /* ───────── cards ───────── */
+  function studyDescription() {
+    return '<details class="sq3r"><summary>Panduan SQ3R · 120 menit</summary>' +
+      '<ol>' +
+        '<li><div class="sq3r-step"><strong>Survey</strong><span>5 menit</span></div><p>Tinjau struktur, topik utama, dan gambaran besar materi.</p></li>' +
+        '<li><div class="sq3r-step"><strong>Question</strong><span>5 menit</span></div><p>Susun pertanyaan untuk menentukan fokus pembelajaran.</p></li>' +
+        '<li><div class="sq3r-step"><strong>Read + Critical Thinking</strong><span>60 menit</span></div><p>Pelajari materi secara mendalam, analisis informasi, dan evaluasi argumen secara kritis.</p></li>' +
+        '<li><div class="sq3r-step"><strong>Recite</strong><span>25 menit</span></div><p>Jelaskan atau tuliskan kembali pemahaman dengan kata-kata sendiri, tanpa bantuan AI.</p></li>' +
+        '<li><div class="sq3r-step"><strong>Review</strong><span>15 menit</span></div><p>Uji pemahaman, identifikasi kesalahan, dan perkuat konsep penting.</p></li>' +
+        '<li><div class="sq3r-step"><strong>Istirahat</strong><span>10 menit</span></div><p>Beristirahat sejenak untuk memulihkan fokus dan konsentrasi.</p></li>' +
+      '</ol><p class="sq3r-total"><strong>Total 120 menit</strong>110 menit belajar + 10 menit istirahat.</p></details>';
+  }
+
   function renderCards() {
     var dow = (now().getDay() + 6) % 7; /* Senin = 0 */
     $('cards').innerHTML = HABITS.map(function (h, idx) {
@@ -765,6 +794,7 @@ body{padding-top:env(safe-area-inset-top)}
             '</button>' +
           '</div>' +
         '</div>' +
+        (h.key === 'study' ? studyDescription() : '') +
         '<div class="grid" aria-hidden="true">' + cells + '</div>' +
         '<div class="foot"><span>18 minggu terakhir</span>' +
           '<button class="iconbtn" type="button" aria-label="Opsi ' + h.name + '"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg></button>' +
