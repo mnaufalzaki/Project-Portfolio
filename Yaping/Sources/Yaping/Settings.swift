@@ -73,224 +73,76 @@ enum HotkeyMode: String, CaseIterable, Identifiable {
     }
 }
 
-enum TranscriptionProvider: String, CaseIterable, Identifiable {
-    case local, groq, gemini, openai, custom, apple
+/// Identifies each of the 3 Gemini API key slots stored in macOS Keychain.
+/// Slot 1 keeps the original `"gemini"` account name so existing saved keys continue working seamlessly.
+struct GeminiKeySlot: Identifiable {
+    let slot: Int
+    let account: String
+    let title: String
+    var id: Int { slot }
 
-    var id: String { rawValue }
+    static let all: [GeminiKeySlot] = [
+        GeminiKeySlot(slot: 1, account: "gemini", title: "API Key 1 (Utama)"),
+        GeminiKeySlot(slot: 2, account: "gemini-2", title: "API Key 2"),
+        GeminiKeySlot(slot: 3, account: "gemini-3", title: "API Key 3"),
+    ]
 
-    var label: String {
-        switch self {
-        case .local: return "Lokal — whisper.cpp (gratis, offline)"
-        case .groq: return "Groq — gratis, perlu API key (cloud)"
-        case .gemini: return "Google Gemini 3.5 Transcribe — gratis, paling canggih (cloud)"
-        case .openai: return "OpenAI"
-        case .custom: return "Custom (OpenAI-compatible)"
-        case .apple: return "Apple — offline, tanpa API key"
-        }
-    }
-
-    var defaultBaseURL: String {
-        switch self {
-        case .local: return ""
-        case .groq: return "https://api.groq.com/openai/v1"
-        case .gemini: return "https://generativelanguage.googleapis.com/v1beta"
-        case .openai: return "https://api.openai.com/v1"
-        case .custom: return "http://localhost:8000/v1"
-        case .apple: return ""
-        }
-    }
-
-    var defaultModel: String {
-        switch self {
-        case .local: return ""
-        case .groq: return "whisper-large-v3"
-        case .gemini: return "gemini-3.5-transcribe"
-        case .openai: return "gpt-4o-transcribe"
-        case .custom: return "whisper-1"
-        case .apple: return ""
-        }
-    }
-
-    var defaultChatModel: String {
-        switch self {
-        case .groq: return "llama-3.3-70b-versatile"
-        case .openai: return "gpt-4o-mini"
-        case .local, .gemini, .custom, .apple: return ""
-        }
-    }
-
-    /// Short name for status messages ("Gemini: kuota habis → Groq").
-    var shortName: String {
-        switch self {
-        case .local: return "Whisper lokal"
-        case .groq: return "Groq"
-        case .gemini: return "Gemini"
-        case .openai: return "OpenAI"
-        case .custom: return "Custom"
-        case .apple: return "Apple"
-        }
-    }
-
-    /// Speaks the OpenAI `/audio/transcriptions` + `/chat/completions` dialect.
-    var isOpenAICompatible: Bool { self == .groq || self == .openai || self == .custom }
-
-    var keyURL: URL? {
-        switch self {
-        case .groq: return URL(string: "https://console.groq.com/keys")
-        case .openai: return URL(string: "https://platform.openai.com/api-keys")
-        case .gemini: return URL(string: "https://aistudio.google.com/apikey")
-        case .local, .custom, .apple: return nil
-        }
-    }
-}
-
-enum CleanupProvider: String, CaseIterable, Identifiable {
-    case groq, ollama, claude, sameAsTranscription
-    var id: String { rawValue }
-}
-
-enum CleanupStyle: String, CaseIterable, Identifiable {
-    case polish, minimal
-    var id: String { rawValue }
-
-    var label: String {
-        switch self {
-        case .polish: return "Parafrase + cek grammar"
-        case .minimal: return "Minimal — hanya buang filler & tanda baca"
-        }
+    static func account(for slot: Int) -> String {
+        all.first { $0.slot == slot }?.account ?? "gemini"
     }
 }
 
 final class AppSettings: ObservableObject {
     static let shared = AppSettings()
+    static let defaultGeminiModel = "gemini-3.5-transcribe"
+    static let geminiKeyURL = URL(string: "https://aistudio.google.com/apikey")!
+
     private let d = UserDefaults.standard
 
     @Published var hotkey: HotkeyChoice { didSet { d.set(hotkey.rawValue, forKey: "hotkey") } }
     @Published var hotkeyMode: HotkeyMode { didSet { d.set(hotkeyMode.rawValue, forKey: "hotkeyMode") } }
-    /// Primary transcription engine.
-    @Published var provider: TranscriptionProvider {
-        didSet {
-            d.set(provider.rawValue, forKey: "provider")
-            guard oldValue != provider else { return }
-            chatModel = provider.defaultChatModel
-            // Picking the backup as primary swaps the two, so the chain never names one engine twice.
-            if backupProvider == provider { backupProvider = oldValue }
-        }
-    }
-    /// Tried when the primary fails (quota, network, missing key…). nil = no backup.
-    @Published var backupProvider: TranscriptionProvider? {
-        didSet { d.set(backupProvider?.rawValue ?? "", forKey: "backupProvider") }
-    }
-    /// Last resort when every online engine failed: whisper.cpp on this Mac.
-    @Published var offlineFallback: Bool { didSet { d.set(offlineFallback, forKey: "offlineFallback") } }
-    @Published var customBaseURL: String { didSet { d.set(customBaseURL, forKey: "customBaseURL") } }
-    /// Model name per engine, so switching engines never clobbers another engine's choice.
-    @Published private var models: [String: String] { didSet { d.set(models, forKey: "transcriptionModels") } }
-    @Published var language: String { didSet { d.set(language, forKey: "language") } }
+    @Published var geminiModel: String { didSet { d.set(geminiModel, forKey: "geminiModel") } }
     @Published var geminiSmart: Bool { didSet { d.set(geminiSmart, forKey: "geminiSmart") } }
-    @Published var cleanupEnabled: Bool { didSet { d.set(cleanupEnabled, forKey: "cleanupEnabled") } }
-    @Published var cleanupProvider: CleanupProvider { didSet { d.set(cleanupProvider.rawValue, forKey: "cleanupProvider") } }
-    @Published var cleanupStyle: CleanupStyle { didSet { d.set(cleanupStyle.rawValue, forKey: "cleanupStyle") } }
-    @Published var ollamaModel: String { didSet { d.set(ollamaModel, forKey: "ollamaModel") } }
-    @Published var groqChatModel: String { didSet { d.set(groqChatModel, forKey: "groqChatModel") } }
-    /// Chat models the user's Groq account can use, as reported by the API.
-    @Published var groqModels: [String] { didSet { d.set(groqModels, forKey: "groqModels") } }
-    @Published var claudeModel: String { didSet { d.set(claudeModel, forKey: "claudeModel") } }
-    @Published var chatModel: String { didSet { d.set(chatModel, forKey: "chatModel") } }
-    @Published var vocabulary: String { didSet { d.set(vocabulary, forKey: "vocabulary") } }
+    @Published var language: String { didSet { d.set(language, forKey: "language") } }
     @Published var playSounds: Bool { didSet { d.set(playSounds, forKey: "playSounds") } }
     @Published var restoreClipboard: Bool { didSet { d.set(restoreClipboard, forKey: "restoreClipboard") } }
-    /// Long recordings paste each ~1-minute piece as soon as it's transcribed.
+    /// Long recordings paste each piece as soon as it's transcribed.
     @Published var progressiveInsert: Bool { didSet { d.set(progressiveInsert, forKey: "progressiveInsert") } }
 
     private init() {
         d.register(defaults: [
-            "cleanupEnabled": true,
             "playSounds": true,
             "restoreClipboard": true,
             "geminiSmart": true,
             "progressiveInsert": true,
-            "offlineFallback": true,
         ])
-        let provider = TranscriptionProvider(rawValue: d.string(forKey: "provider") ?? "") ?? .local
-        self.provider = provider
         hotkey = HotkeyChoice(rawValue: d.string(forKey: "hotkey") ?? "") ?? .commandOption
         hotkeyMode = HotkeyMode(rawValue: d.string(forKey: "hotkeyMode") ?? "") ?? .toggle
-        if let saved = d.string(forKey: "backupProvider") {
-            backupProvider = TranscriptionProvider(rawValue: saved)
-        } else {
-            backupProvider = provider == .groq ? .local : .groq
-        }
-        offlineFallback = d.bool(forKey: "offlineFallback")
-        customBaseURL = d.string(forKey: "customBaseURL") ?? TranscriptionProvider.custom.defaultBaseURL
-        var models = d.dictionary(forKey: "transcriptionModels") as? [String: String] ?? [:]
-        // Carry over the single model setting from earlier versions.
-        if models[provider.rawValue] == nil, let old = d.string(forKey: "transcriptionModel"), !old.isEmpty {
-            models[provider.rawValue] = old
-        }
-        self.models = models
-        language = d.string(forKey: "language") ?? "auto"
+        // Carry over saved Gemini model from earlier multi-provider versions if present.
+        let legacyModel = (d.dictionary(forKey: "transcriptionModels") as? [String: String])?["gemini"]
+        let savedModel = d.string(forKey: "geminiModel") ?? legacyModel ?? ""
+        geminiModel = savedModel.trimmingCharacters(in: .whitespaces).isEmpty
+            ? Self.defaultGeminiModel
+            : savedModel
         geminiSmart = d.bool(forKey: "geminiSmart")
-        cleanupEnabled = d.bool(forKey: "cleanupEnabled")
-        cleanupProvider = CleanupProvider(rawValue: d.string(forKey: "cleanupProvider") ?? "") ?? .groq
-        cleanupStyle = CleanupStyle(rawValue: d.string(forKey: "cleanupStyle") ?? "") ?? .polish
-        ollamaModel = d.string(forKey: "ollamaModel") ?? ""
-        groqChatModel = d.string(forKey: "groqChatModel") ?? "llama-3.3-70b-versatile"
-        groqModels = d.stringArray(forKey: "groqModels") ?? []
-        claudeModel = d.string(forKey: "claudeModel") ?? "claude-opus-5-5"
-        chatModel = d.string(forKey: "chatModel") ?? provider.defaultChatModel
-        vocabulary = d.string(forKey: "vocabulary") ?? ""
+        language = d.string(forKey: "language") ?? "auto"
         playSounds = d.bool(forKey: "playSounds")
         restoreClipboard = d.bool(forKey: "restoreClipboard")
         progressiveInsert = d.bool(forKey: "progressiveInsert")
     }
 
-    func model(for engine: TranscriptionProvider) -> String {
-        let saved = models[engine.rawValue]?.trimmingCharacters(in: .whitespaces) ?? ""
-        return saved.isEmpty ? engine.defaultModel : saved
+    var effectiveGeminiModel: String {
+        let trimmed = geminiModel.trimmingCharacters(in: .whitespaces)
+        return trimmed.isEmpty ? Self.defaultGeminiModel : trimmed
     }
 
-    func setModel(_ model: String, for engine: TranscriptionProvider) {
-        models[engine.rawValue] = model
+    /// Slots that currently have a saved API key in Keychain (checked without reading secrets).
+    var configuredGeminiSlots: [Int] {
+        GeminiKeySlot.all.filter { KeyStore.status($0.account) != .missing }.map(\.slot)
     }
 
-    func baseURL(for engine: TranscriptionProvider) -> String {
-        engine == .custom ? customBaseURL : engine.defaultBaseURL
-    }
-
-    func key(for engine: TranscriptionProvider) -> String {
-        KeyStore.get(engine.rawValue)
-    }
-
-    /// Primary engine's endpoint/key (used by the optional "same as transcription" rewrite).
-    var baseURL: String { baseURL(for: provider) }
-    var transcriptionKey: String { key(for: provider) }
-
-    /// Engines to try, in order: primary, backup, then local Whisper if enabled. Never repeats one.
-    var transcriptionChain: [TranscriptionProvider] {
-        var chain = [provider]
-        if let backup = backupProvider, !chain.contains(backup) { chain.append(backup) }
-        if offlineFallback, !chain.contains(.local), LocalWhisper.isInstalled { chain.append(.local) }
-        return chain
-    }
-
-    var vocabularyTerms: [String] {
-        vocabulary
-            .components(separatedBy: CharacterSet(charactersIn: ",\n"))
-            .map { $0.trimmingCharacters(in: .whitespaces) }
-            .filter { !$0.isEmpty }
-    }
-
-    private var needsCleanupKey: Bool {
-        cleanupEnabled && cleanupProvider == .groq && KeyStore.get("groq").isEmpty
-    }
-
-    /// True when the app can't transcribe yet and the user should see Settings.
+    /// True when no Gemini API key has been configured yet.
     var needsSetup: Bool {
-        switch provider {
-        case .local: return !LocalWhisper.isInstalled || needsCleanupKey
-        case .groq, .gemini, .openai: return transcriptionKey.isEmpty
-        case .custom, .apple: return false
-        }
+        configuredGeminiSlots.isEmpty
     }
 }

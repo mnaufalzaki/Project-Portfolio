@@ -8,10 +8,9 @@ struct SettingsView: View {
         TabView {
             GeneralTab().tabItem { Label("Umum", systemImage: "gearshape") }
             EngineTab().tabItem { Label("Mesin AI", systemImage: "sparkles") }
-            VocabularyTab().tabItem { Label("Kosakata", systemImage: "character.book.closed") }
             HistoryTab().tabItem { Label("Riwayat", systemImage: "clock.arrow.circlepath") }
         }
-        .frame(width: 580, height: 560)
+        .frame(width: 580, height: 540)
     }
 }
 
@@ -66,7 +65,7 @@ private struct GeneralTab: View {
                 Toggle("Bunyi saat mulai & selesai", isOn: $s.playSounds)
                 Toggle("Kembalikan isi clipboard setelah menempel", isOn: $s.restoreClipboard)
                 Toggle("Tampilkan teks bertahap saat bicara lama", isOn: $s.progressiveInsert)
-                Hint("Rekaman panjang dipotong tiap ±1 menit dan diproses selagi kamu bicara. Kalau nyala, teks tiap potongan langsung muncul — jangan pindah kolom/aplikasi selama merekam. Kalau mati, semuanya muncul sekaligus di akhir.")
+                Hint("Rekaman panjang dipotong tiap ±1,5–2 menit (hemat kuota) dan diproses selagi kamu bicara. Kalau nyala, teks tiap potongan langsung muncul — jangan pindah kolom/aplikasi selama merekam. Kalau mati, semuanya muncul sekaligus di akhir.")
                 Toggle("Buka otomatis saat login", isOn: $m.launchAtLogin)
             }
             Section("Izin") {
@@ -84,24 +83,6 @@ private struct GeneralTab: View {
         }
         .formStyle(.grouped)
         .onReceive(refresh) { _ in m.refresh() }
-    }
-}
-
-/// Status of the local engines, refreshed while the tab is open.
-private final class LocalStatus: ObservableObject {
-    @Published var whisperInstalled = LocalWhisper.isInstalled
-    @Published var ollamaModels: [String] = []
-    @Published var ollamaReachable = false
-
-    func refresh() {
-        let installed = LocalWhisper.isInstalled
-        if installed != whisperInstalled { whisperInstalled = installed }
-        Task { @MainActor in
-            let models = await Ollama.installedModels()
-            if models != ollamaModels { ollamaModels = models }
-            let reachable = !models.isEmpty
-            if reachable != ollamaReachable { ollamaReachable = reachable }
-        }
     }
 }
 
@@ -136,166 +117,40 @@ private struct AboutRow: View {
 private struct EngineTab: View {
     @ObservedObject private var s = AppSettings.shared
     @ObservedObject private var quota = Quota.shared
-    @StateObject private var local = LocalStatus()
-    private let refresh = Timer.publish(every: 3, on: .main, in: .common).autoconnect()
 
     var body: some View {
         Form {
-            Section("Transkripsi (suara → teks)") {
-                Picker("Penyedia utama", selection: $s.provider) {
-                    ForEach(TranscriptionProvider.allCases) { Text($0.label).tag($0) }
-                }
-                switch s.provider {
-                case .local:
-                    StatusRow(ok: local.whisperInstalled,
-                              okText: "whisper.cpp siap — model: \(LocalWhisper.modelPath.map { URL(fileURLWithPath: $0).lastPathComponent } ?? "-")",
-                              badText: "whisper.cpp atau modelnya belum terpasang")
-                    if !local.whisperInstalled {
-                        Hint("Jalankan di Terminal: `./scripts/setup-local.sh` (dari folder Yaping). Butuh ±600 MB ruang disk.")
-                    }
-                    Button("Buka Folder Model") {
-                        try? FileManager.default.createDirectory(at: LocalWhisper.modelsDir, withIntermediateDirectories: true)
-                        NSWorkspace.shared.open(LocalWhisper.modelsDir)
-                    }
-                case .apple:
-                    Hint("Memakai pengenal suara Apple langsung di Mac. Gratis dan offline, tapi akurasinya di bawah Whisper.")
-                case .gemini:
-                    Hint("Gratis: buka aistudio.google.com/apikey → Create API key, lalu tempel di bawah. Di tier gratis, Google boleh memakai audio untuk meningkatkan produknya.")
-                    KeyField(title: "API key", account: s.provider.rawValue)
-                        .id(s.provider)
-                    TextField("Model", text: modelBinding(s.provider))
-                    Toggle("Mode smart — buang “eh/emm” & ikuti koreksi, tanpa mengubah kata", isOn: $s.geminiSmart)
-                    Hint("Kosakata pribadi dikirim sebagai daftar istilah yang benar-benar dipakai model (sampai 1.000 istilah).")
-                    Link("Dapatkan API key ↗", destination: s.provider.keyURL!).font(.caption)
-                case .groq, .openai, .custom:
-                    if s.provider == .custom {
-                        TextField("Base URL", text: $s.customBaseURL)
-                    }
-                    if s.provider == .groq {
-                        Hint("Gratis tanpa kartu kredit: daftar di console.groq.com → API Keys → Create API Key, lalu tempel di bawah.")
-                    }
-                    KeyField(title: "API key", account: s.provider.rawValue)
-                        .id(s.provider)
-                    TextField("Model", text: modelBinding(s.provider))
-                    if let url = s.provider.keyURL {
-                        Link("Dapatkan API key ↗", destination: url).font(.caption)
-                    }
-                }
-                if let usage = quota.summary(for: s.provider) {
-                    QuotaRow(text: usage)
-                }
+            Section("Google Gemini 3.5 Transcribe") {
+                TextField("Model", text: $s.geminiModel)
+                Toggle("Mode smart (buang “eh/emm” & ikuti koreksi, tanpa mengubah kata)", isOn: $s.geminiSmart)
                 Picker("Bahasa", selection: $s.language) {
                     Text("Otomatis (campur juga bisa)").tag("auto")
                     Text("Bahasa Indonesia").tag("id")
                     Text("English").tag("en")
                 }
+                if let usage = quota.summary(for: s.configuredGeminiSlots) {
+                    QuotaRow(text: usage)
+                }
             }
 
-            Section("Cadangan otomatis") {
-                Picker("Penyedia cadangan", selection: $s.backupProvider) {
-                    Text("Tidak ada").tag(TranscriptionProvider?.none)
-                    ForEach(TranscriptionProvider.allCases.filter { $0 != s.provider }) {
-                        Text($0.label).tag(Optional($0))
+            Section("API Key Gemini (1, 2, 3)") {
+                Hint("Isi 1 sampai 3 API key dari Google AI Studio. Jika Key 1 kena batas kuota harian atau error, Yaping otomatis pindah ke Key 2 lalu Key 3.")
+                ForEach(GeminiKeySlot.all) { item in
+                    VStack(alignment: .leading, spacing: 4) {
+                        KeyField(title: item.title, account: item.account)
+                        if KeyStore.status(item.account) != .missing {
+                            Text("Key \(item.slot): \(quota.slotSummary(slot: item.slot))")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
                     }
+                    .padding(.vertical, 2)
                 }
-                if let backup = s.backupProvider {
-                    switch backup {
-                    case .groq, .gemini, .openai, .custom:
-                        if backup == .custom {
-                            TextField("Base URL cadangan", text: $s.customBaseURL)
-                        }
-                        KeyField(title: "API key \(backup.shortName)", account: backup.rawValue)
-                            .id("backup-\(backup.rawValue)")
-                        TextField("Model cadangan", text: modelBinding(backup))
-                        if let usage = quota.summary(for: backup) {
-                            QuotaRow(text: usage)
-                        }
-                    case .local:
-                        StatusRow(ok: local.whisperInstalled,
-                                  okText: "Whisper lokal siap",
-                                  badText: "Whisper lokal belum terpasang — jalankan ./scripts/setup-local.sh")
-                    case .apple:
-                        Hint("Pengenal suara Apple, tanpa API key. Akurasinya paling rendah.")
-                    }
-                }
-                Toggle("Pakai Whisper lokal kalau semua gagal (offline)", isOn: $s.offlineFallback)
-                    .disabled(!local.whisperInstalled)
-                Hint("Urutan saat ini: \(s.transcriptionChain.map(\.shortName).joined(separator: " → ")). Kalau satu penyedia gagal (kuota habis, internet, key salah), yang berikutnya langsung dipakai. Penyedia yang kuotanya habis diistirahatkan 10 menit.")
-            }
-
-            Section("Perapian AI") {
-                Toggle("Rapikan hasil dikte", isOn: $s.cleanupEnabled)
-                if s.cleanupEnabled {
-                    Picker("Gaya", selection: $s.cleanupStyle) {
-                        ForEach(CleanupStyle.allCases) { Text($0.label).tag($0) }
-                    }
-                    Picker("Penyedia", selection: $s.cleanupProvider) {
-                        Text("Groq — gratis, kualitas terbaik (cloud)").tag(CleanupProvider.groq)
-                        Text("Lokal — Ollama (gratis, offline)").tag(CleanupProvider.ollama)
-                        Text("Claude (Anthropic, berbayar)").tag(CleanupProvider.claude)
-                        Text("Sama dengan transkripsi (mis. Groq gratis)").tag(CleanupProvider.sameAsTranscription)
-                    }
-                    switch s.cleanupProvider {
-                    case .groq:
-                        Hint("Gratis tanpa kartu kredit: daftar di console.groq.com → API Keys → Create API Key, lalu tempel di bawah. Hanya teks hasil transkripsi yang dikirim, bukan suaramu.")
-                        KeyField(title: "Groq API key", account: "groq")
-                        Picker("Model", selection: $s.groqChatModel) {
-                            ForEach(groqModelOptions, id: \.self) { Text(Groq.label(for: $0)).tag($0) }
-                        }
-                        Hint(s.groqModels.isEmpty
-                             ? "Daftar model akan dimuat dari akun Groq-mu setelah API key diisi."
-                             : "\(s.groqModels.count) model tersedia di akun Groq-mu. Kalau model yang dipilih tidak tersedia, Yaping pindah otomatis.")
-                        Link("Dapatkan API key ↗", destination: URL(string: "https://console.groq.com/keys")!)
-                            .font(.caption)
-                    case .ollama:
-                        StatusRow(ok: local.ollamaReachable,
-                                  okText: "Ollama jalan — \(local.ollamaModels.count) model terpasang",
-                                  badText: "Ollama tidak jalan atau belum ada model")
-                        Picker("Model", selection: $s.ollamaModel) {
-                            Text("Otomatis (model pertama)").tag("")
-                            ForEach(local.ollamaModels, id: \.self) { Text($0).tag($0) }
-                        }
-                        Hint("Model 4–9B seperti Qwen 3.5 atau Gemma 3 sudah cukup bagus untuk Bahasa Indonesia. Model yang lebih kecil = lebih cepat.")
-                    case .claude:
-                        KeyField(title: "Anthropic API key", account: "anthropic")
-                        Picker("Model", selection: $s.claudeModel) {
-                            Text("Claude Opus 5.5 — paling pintar").tag("claude-opus-5-5")
-                            Text("Claude Sonnet 5.5").tag("claude-sonnet-5-5")
-                            Text("Claude Haiku 5.5 — paling cepat & murah").tag("claude-haiku-5-5")
-                        }
-                        Link("Dapatkan API key ↗", destination: URL(string: "https://console.anthropic.com/settings/keys")!)
-                            .font(.caption)
-                    case .sameAsTranscription:
-                        if !s.provider.isOpenAICompatible {
-                            Hint("Penyedia transkripsi ini tidak punya model teks — pilih Ollama atau Claude.")
-                                .foregroundStyle(.orange)
-                        } else {
-                            TextField("Model chat", text: $s.chatModel)
-                        }
-                    }
-                }
+                Link("Dapatkan API key di Google AI Studio ↗", destination: AppSettings.geminiKeyURL)
+                    .font(.caption)
             }
         }
         .formStyle(.grouped)
-        .onAppear {
-            local.refresh()
-            Groq.refreshModels()
-        }
-        .onReceive(refresh) { _ in local.refresh() }
-    }
-}
-
-private extension EngineTab {
-    /// Each engine keeps its own model name (see `AppSettings.model(for:)`).
-    func modelBinding(_ engine: TranscriptionProvider) -> Binding<String> {
-        Binding(get: { s.model(for: engine) }, set: { s.setModel($0, for: engine) })
-    }
-
-    /// The account's models (or the known defaults before we've asked), always including the current pick.
-    var groqModelOptions: [String] {
-        var options = s.groqModels.isEmpty ? Array(Groq.preferred) : s.groqModels
-        if !options.contains(s.groqChatModel) { options.insert(s.groqChatModel, at: 0) }
-        return options
     }
 }
 
@@ -309,64 +164,78 @@ private struct QuotaRow: View {
     }
 }
 
-private struct StatusRow: View {
-    let ok: Bool
-    let okText: String
-    let badText: String
+/// Tracks which history entry was just copied so the button can show a brief confirmation.
+private final class CopyFeedback: ObservableObject {
+    @Published var copiedID: UUID?
+    private var clearWork: DispatchWorkItem?
 
-    var body: some View {
-        Label(ok ? okText : badText, systemImage: ok ? "checkmark.circle.fill" : "exclamationmark.circle.fill")
-            .foregroundStyle(ok ? .green : .orange)
-            .font(.callout)
-    }
-}
-
-private struct VocabularyTab: View {
-    @ObservedObject private var s = AppSettings.shared
-
-    var body: some View {
-        Form {
-            Section {
-                TextEditor(text: $s.vocabulary)
-                    .font(.body.monospaced())
-                    .frame(minHeight: 260)
-            } header: {
-                Text("Kosakata pribadi")
-            } footer: {
-                Hint("Satu kata per baris (atau pisahkan dengan koma): nama orang, merek, istilah teknis. Yaping akan mengejanya persis seperti ini.\nContoh: Naufal, Supabase, Kubernetes, ITS Surabaya")
-            }
+    func copy(_ entry: HistoryEntry) {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(entry.text, forType: .string)
+        copiedID = entry.id
+        clearWork?.cancel()
+        let work = DispatchWorkItem { [weak self] in
+            if self?.copiedID == entry.id { self?.copiedID = nil }
         }
-        .formStyle(.grouped)
+        clearWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5, execute: work)
     }
 }
 
 private struct HistoryTab: View {
     @ObservedObject private var history = HistoryStore.shared
+    @StateObject private var feedback = CopyFeedback()
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
                 Text("\(history.totalWords) kata didikte · \(history.entries.count) catatan")
+                    .font(.callout)
                     .foregroundStyle(.secondary)
                 Spacer()
                 Button("Hapus Semua", role: .destructive) { history.clear() }
                     .disabled(history.entries.isEmpty)
             }
-            .padding()
-            List(history.entries) { entry in
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(entry.text).textSelection(.enabled)
-                    HStack {
-                        Spacer()
-                        Button("Salin") {
-                            NSPasteboard.general.clearContents()
-                            NSPasteboard.general.setString(entry.text, forType: .string)
-                        }
-                        .buttonStyle(.link)
-                        .font(.caption)
-                    }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            Divider()
+            if history.entries.isEmpty {
+                VStack(spacing: 8) {
+                    Image(systemName: "waveform")
+                        .font(.system(size: 28))
+                        .foregroundStyle(.tertiary)
+                    Text("Belum ada riwayat dikte")
+                        .foregroundStyle(.secondary)
                 }
-                .padding(.vertical, 4)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                List(history.entries) { entry in
+                    let isCopied = feedback.copiedID == entry.id
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text(entry.text)
+                            .font(.body)
+                            .lineSpacing(2)
+                            .textSelection(.enabled)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        HStack(alignment: .center) {
+                            Text("\(entry.date.formatted(date: .abbreviated, time: .shortened)) · \(entry.wordCount) kata")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Spacer()
+                            Button {
+                                feedback.copy(entry)
+                            } label: {
+                                Label(isCopied ? "Tersalin" : "Salin",
+                                      systemImage: isCopied ? "checkmark" : "doc.on.doc")
+                                    .font(.callout.weight(.medium))
+                                    .foregroundStyle(isCopied ? .green : .primary)
+                            }
+                            .buttonStyle(.bordered)
+                            .controlSize(.regular)
+                        }
+                    }
+                    .padding(.vertical, 8)
+                }
             }
         }
     }
@@ -396,7 +265,7 @@ private final class KeyModel: ObservableObject {
             draft = ""
             editing = false
             error = nil
-            if account == "groq" { Groq.scheduleRefresh() }
+            Quota.shared.notifyChanged()
         } else {
             error = "Gagal menyimpan ke Keychain — coba lagi"
         }
@@ -419,6 +288,7 @@ private final class KeyModel: ObservableObject {
         KeyStore.set("", for: account)
         status = KeyStore.status(account)
         editing = true
+        Quota.shared.notifyChanged()
     }
 
     /// Asks macOS again for a key it refused to hand over.
@@ -429,6 +299,7 @@ private final class KeyModel: ObservableObject {
             error = "Masih ditolak — klik Izinkan lalu pilih “Always Allow”, atau Ubah untuk memasukkan ulang"
         }
         status = KeyStore.status(account)
+        Quota.shared.notifyChanged()
     }
 }
 
@@ -445,7 +316,7 @@ private struct KeyField: View {
         VStack(alignment: .leading, spacing: 4) {
             if model.editing {
                 HStack {
-                    SecureField(title, text: $model.draft, prompt: Text("Tempel di sini"))
+                    SecureField(title, text: $model.draft, prompt: Text("Tempel API key di sini"))
                         .onSubmit { model.save() }
                     Button("Simpan") { model.save() }
                         .keyboardShortcut(.defaultAction)

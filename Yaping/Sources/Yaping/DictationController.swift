@@ -26,10 +26,11 @@ final class DictationController: ObservableObject {
     private var awake: NSObjectProtocol?
 
     private static let tapThreshold: TimeInterval = 0.3
-    private static let minDuration: TimeInterval = 0.4
-    /// Cut at the first pause after 45 s, or hard at 75 s. Gemini handles ~1-minute pieces far
-    /// faster per second of audio than long ones (8 s for 1 min vs 143 s for 5 min in testing).
-    private static let pieceLength: ClosedRange<TimeInterval> = 45...75
+    private static let minDuration: TimeInterval = 0.5
+    private static let minSpeechDuration: TimeInterval = 0.25
+    /// Cut at the first pause after 90 s, or hard at 120 s. Longer pieces conserve Gemini's
+    /// 25 req/day free quota while M4A compression keeps uploads compact and fast.
+    private static let pieceLength: ClosedRange<TimeInterval> = 90...120
 
     init() {
         recorder.onLevel = { [weak self] level in self?.overlay.model.push(level) }
@@ -91,6 +92,41 @@ final class DictationController: ObservableObject {
         TextInserter.insert(last.text, restoreClipboard: settings.restoreClipboard)
     }
 
+    /// Retries transcribing the most recent failed audio chunk preserved by FailedRecordings.
+    func retryLastFailed() {
+        guard state == .idle, let item = FailedRecordings.shared.latest else { return }
+        state = .processing
+        overlay.show(.processing)
+        stayAwake(true)
+
+        Task {
+            defer {
+                state = .idle
+                stayAwake(false)
+            }
+            do {
+                let result = try await Transcriber.transcribe(item.url, settings: settings)
+                let raw = result.text.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !raw.isEmpty else {
+                    FailedRecordings.shared.remove(item)
+                    overlay.hide()
+                    return
+                }
+                let text = Transcriber.normalize(raw)
+                FailedRecordings.shared.remove(item)
+                let pasted = TextInserter.insert(text, restoreClipboard: settings.restoreClipboard)
+                HistoryStore.shared.add(text: text, raw: raw)
+                if !pasted {
+                    overlay.flash(error: "Teks disalin — tekan ⌘V.")
+                } else {
+                    overlay.hide()
+                }
+            } catch {
+                overlay.flash(error: "Gagal coba ulang: \(error.localizedDescription)")
+            }
+        }
+    }
+
     private func startRecording(locked: Bool) {
         switch Permissions.microphone {
         case .notDetermined:
@@ -108,9 +144,6 @@ final class DictationController: ObservableObject {
             try recorder.start(chunked: Self.pieceLength)
             recordingStarted = Date()
             stayAwake(true)
-            if settings.cleanupEnabled && settings.cleanupProvider == .groq {
-                Task.detached { await Groq.preconnect() }
-            }
             state = .recording(locked: locked)
             overlay.show(.recording(locked: locked))
             sound("Tink")
@@ -130,16 +163,21 @@ final class DictationController: ObservableObject {
         self.pipeline = nil
         sound("Pop")
 
-        let last = AudioRecorder.Chunk(url: url, duration: recorder.duration, peak: recorder.peakLevel)
+        let last = AudioRecorder.Chunk(url: url, duration: recorder.duration,
+                                       peak: recorder.peakLevel, speechDuration: recorder.speechDuration)
         let spoken = Date().timeIntervalSince(recordingStarted)
 
-        // A short take that's too brief or silent: nothing to transcribe (and Whisper would hallucinate).
-        if pipeline.isEmpty && (last.duration < Self.minDuration || last.peak < ChunkPipeline.silenceLevel) {
+        // Skip brief accidental toggles or takes with no sustained voice before calling cloud APIs
+        // (saves Gemini daily quota and avoids Whisper silence hallucinations).
+        let hasVoice = last.peak >= ChunkPipeline.silenceLevel && last.speechDuration >= Self.minSpeechDuration
+        if pipeline.isEmpty && (last.duration < Self.minDuration || !hasVoice) {
             try? FileManager.default.removeItem(at: url)
             state = .idle
             stayAwake(false)
-            Log.write(String(format: "skipped: %.1fs audio, peak %.2f", last.duration, last.peak))
-            if last.duration >= Self.minDuration {
+            Log.write(String(format: "skipped: %.1fs audio, speech %.2fs, peak %.2f",
+                             last.duration, last.speechDuration, last.peak))
+            // Only warn about microphone issues if the user recorded for a noticeable time with no sound.
+            if last.duration >= 1.8 && last.peak < ChunkPipeline.silenceLevel {
                 overlay.flash(error: "Tidak ada suara terdengar — cek mikrofon di System Settings › Sound")
             } else {
                 overlay.hide()
@@ -187,11 +225,9 @@ final class DictationController: ObservableObject {
             if !pasted {
                 overlay.flash(error: "Teks disalin — tekan ⌘V. Izinkan Accessibility agar otomatis.")
             } else if result.failedParts > 0 {
-                overlay.flash(error: "\(result.failedParts) bagian (±1 menit) gagal ditranskripsi — sisanya sudah ditempel.")
+                overlay.flash(error: "\(result.failedParts) bagian gagal ditranskripsi (disimpan di menu bar untuk dicoba ulang).")
             } else if let note = result.fallbackNote {
-                overlay.flash(error: "Pakai cadangan — \(note)")
-            } else if let polishError = result.polishError {
-                overlay.flash(error: "Sebagian teks mentah — perapian gagal: \(polishError.localizedDescription)")
+                overlay.flash(error: "Pindah key — \(note)")
             } else if let warning = result.quotaWarning {
                 overlay.flash(error: warning)
             } else {

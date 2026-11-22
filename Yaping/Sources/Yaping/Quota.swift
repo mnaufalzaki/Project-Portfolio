@@ -1,148 +1,150 @@
 import Foundation
 
-/// Tracks how much of each free tier is left, for the menu bar, Settings and in-app warnings.
+/// Tracks estimated daily quota and cooldown windows across Gemini API key slots (1, 2, 3).
 ///
-/// - Gemini doesn't report remaining quota, so successful requests are counted locally against the
-///   daily limit (accurate as long as the key is only used by Yaping). The daily window resets at
-///   midnight UTC. A 429 tells us the real limit and the exact wait, which overrides the estimate.
-/// - Groq reports its daily request quota in every response's `x-ratelimit-*` headers.
+/// Gemini doesn't report remaining quota in response headers, so successful requests are counted
+/// locally per key against the daily limit (default 25). The daily window resets at midnight
+/// Pacific Time (America/Los_Angeles). A 429 response overrides the estimate with the exact wait.
 final class Quota: ObservableObject {
     static let shared = Quota()
 
-    private struct Gemini: Codable {
+    private struct SlotQuota: Codable {
         var day = ""
         var used = 0
         var limit = 25
         var blockedUntil: Date?
     }
 
-    private struct Groq: Codable {
-        var limit: Int?
-        var remaining: Int?
-        var resetsAt: Date?
-        var blockedUntil: Date?
-    }
-
     private let lock = NSLock()
-    private var gemini: Gemini
-    private var groq: Groq
+    private var slots: [Int: SlotQuota]
     private let defaults = UserDefaults.standard
 
-    /// Warn when this many (or fewer) requests are left.
-    private static let geminiWarnAt: Set<Int> = [5, 1]
-    private static let groqWarnAt = 20
+    /// Warn when total remaining requests across all configured keys reaches these numbers.
+    private static let warnAt: Set<Int> = [5, 1]
+    private static let storageKey = "quota.gemini.slots"
+    private static let pacificTimeZone = TimeZone(identifier: "America/Los_Angeles")!
 
     private init() {
-        gemini = Self.load(Gemini.self, key: "quota.gemini") ?? Gemini()
-        groq = Self.load(Groq.self, key: "quota.groq") ?? Groq()
+        if let saved = Self.load([Int: SlotQuota].self, key: Self.storageKey) {
+            slots = saved
+        } else if let legacy = Self.load(SlotQuota.self, key: "quota.gemini") {
+            slots = [1: legacy]
+        } else {
+            slots = [:]
+        }
     }
 
     // MARK: Recording
 
-    /// Call after a successful Gemini transcription. Returns a warning when the quota is running low.
-    func recordGeminiSuccess() -> String? {
-        let remaining: Int = locked {
-            rollGeminiDay()
-            gemini.used += 1
-            return max(0, gemini.limit - gemini.used)
+    /// Call after a successful Gemini transcription on `slot`. Returns a warning when total quota is low.
+    func recordSuccess(slot: Int, activeSlots: [Int]) -> String? {
+        let totalRemaining: Int = locked {
+            rollDayIfNeeded(slot: slot)
+            var state = slots[slot] ?? SlotQuota(day: Self.pacificDay(Date()))
+            state.used += 1
+            slots[slot] = state
+
+            let tracked = activeSlots.isEmpty ? [slot] : activeSlots
+            return tracked.reduce(0) { sum, s in
+                rollDayIfNeeded(slot: s)
+                let st = slots[s] ?? SlotQuota(day: Self.pacificDay(Date()))
+                if let until = st.blockedUntil, until > Date() { return sum }
+                return sum + max(0, st.limit - st.used)
+            }
         }
         save()
-        return Self.geminiWarnAt.contains(remaining)
-            ? "Kuota Gemini tinggal ±\(remaining) hari ini — setelah habis otomatis pakai cadangan"
+        return Self.warnAt.contains(totalRemaining)
+            ? "Total kuota Gemini tinggal ±\(totalRemaining) hari ini"
             : nil
     }
 
-    /// Reads Groq's quota headers from any response (successful or not).
-    func recordGroq(_ response: HTTPURLResponse) -> String? {
-        let limit = response.value(forHTTPHeaderField: "x-ratelimit-limit-requests").flatMap { Int($0) }
-        let remaining = response.value(forHTTPHeaderField: "x-ratelimit-remaining-requests").flatMap { Int($0) }
-        guard limit != nil || remaining != nil else { return nil }
-        let reset = response.value(forHTTPHeaderField: "x-ratelimit-reset-requests").flatMap(Self.parseDuration)
-        locked {
-            groq.limit = limit ?? groq.limit
-            groq.remaining = remaining ?? groq.remaining
-            if let reset { groq.resetsAt = Date().addingTimeInterval(reset) }
-        }
-        save()
-        if let remaining, remaining <= Self.groqWarnAt {
-            return "Kuota Groq tinggal \(remaining) hari ini"
-        }
-        return nil
-    }
-
-    /// Call on HTTP 429. Learns the real limit/wait from the error message and returns when to try again.
+    /// Call on HTTP 429 for `slot`. Learns the real limit/wait from the error message.
     @discardableResult
-    func recordLimitHit(_ engine: TranscriptionProvider, message: String) -> Date {
+    func recordLimitHit(slot: Int, message: String) -> Date {
         let wait = Self.retryDelay(in: message) ?? 10 * 60
         let until = Date().addingTimeInterval(wait)
         locked {
-            switch engine {
-            case .gemini:
-                rollGeminiDay()
-                if let limit = Self.firstInt(in: message, pattern: #"limit:\s*(\d+)"#) { gemini.limit = limit }
-                gemini.used = max(gemini.used, gemini.limit)
-                gemini.blockedUntil = until
-            case .groq:
-                groq.remaining = 0
-                groq.blockedUntil = until
-            default:
-                break
+            rollDayIfNeeded(slot: slot)
+            var state = slots[slot] ?? SlotQuota(day: Self.pacificDay(Date()))
+            if let limit = Self.firstInt(in: message, pattern: #"limit:\s*(\d+)"#) {
+                state.limit = limit
             }
+            state.used = max(state.used, state.limit)
+            state.blockedUntil = until
+            slots[slot] = state
         }
         save()
         return until
     }
 
+    /// Triggers UI refresh when keys are added or removed in Settings.
+    func notifyChanged() {
+        DispatchQueue.main.async { self.objectWillChange.send() }
+    }
+
     // MARK: Reading
 
-    /// When an engine may be tried again after hitting its limit, or nil if it's available.
-    func blockedUntil(_ engine: TranscriptionProvider) -> Date? {
+    /// When `slot` may be tried again after hitting its limit, or nil if it's available.
+    func blockedUntil(slot: Int) -> Date? {
         locked {
-            let until: Date?
-            switch engine {
-            case .gemini: until = gemini.blockedUntil
-            case .groq: until = groq.blockedUntil
-            default: until = nil
-            }
-            guard let until, until > Date() else { return nil }
+            guard let until = slots[slot]?.blockedUntil, until > Date() else { return nil }
             return until
         }
     }
 
-    /// One-line summary for the menu bar and Settings, or nil for engines without a quota.
-    func summary(for engine: TranscriptionProvider) -> String? {
-        switch engine {
-        case .gemini:
-            if let until = blockedUntil(.gemini) {
-                return "Gemini: habis · tersedia lagi \(Self.clock(until))"
+    /// Combined one-line summary across all configured keys (for menu bar & Settings).
+    func summary(for configuredSlots: [Int]) -> String? {
+        guard !configuredSlots.isEmpty else { return nil }
+        let now = Date()
+        let result: (remaining: Int, totalLimit: Int, earliestUnlock: Date?) = locked {
+            var remaining = 0
+            var totalLimit = 0
+            var earliest: Date?
+            for s in configuredSlots {
+                rollDayIfNeeded(slot: s)
+                let st = slots[s] ?? SlotQuota(day: Self.pacificDay(now))
+                totalLimit += st.limit
+                if let until = st.blockedUntil, until > now {
+                    if earliest == nil || until < earliest! { earliest = until }
+                } else {
+                    remaining += max(0, st.limit - st.used)
+                }
             }
-            let (used, limit) = locked { () -> (Int, Int) in
-                rollGeminiDay()
-                return (gemini.used, gemini.limit)
-            }
-            return "Gemini: ±\(max(0, limit - used)) / \(limit) tersisa · reset \(Self.clock(Self.nextUTCMidnight()))"
-        case .groq:
-            if let until = blockedUntil(.groq) {
-                return "Groq: habis · tersedia lagi \(Self.clock(until))"
-            }
-            let state = locked { groq }
-            guard let remaining = state.remaining, let limit = state.limit else {
-                return "Groq: sisa kuota muncul setelah dipakai"
-            }
-            let reset = state.resetsAt.map { " · reset \(Self.clock($0))" } ?? ""
-            return "Groq: \(remaining.formatted()) / \(limit.formatted()) tersisa\(reset)"
-        default:
-            return nil
+            return (remaining, totalLimit, earliest)
         }
+
+        let label = configuredSlots.count > 1 ? "Gemini (\(configuredSlots.count) key)" : "Gemini"
+        if result.remaining == 0, let unlock = result.earliestUnlock {
+            return "\(label): semua habis · tersedia lagi \(Self.clock(unlock))"
+        }
+        return "\(label): ±\(result.remaining) / \(result.totalLimit) tersisa · reset \(Self.clock(Self.nextPacificMidnight()))"
+    }
+
+    /// Compact per-key status shown under each API key row in Settings.
+    func slotSummary(slot: Int) -> String {
+        if let until = blockedUntil(slot: slot) {
+            return "Habis · tersedia lagi \(Self.clock(until))"
+        }
+        let (used, limit) = locked { () -> (Int, Int) in
+            rollDayIfNeeded(slot: slot)
+            let st = slots[slot] ?? SlotQuota(day: Self.pacificDay(Date()))
+            return (st.used, st.limit)
+        }
+        return "±\(max(0, limit - used)) / \(limit) tersisa"
     }
 
     // MARK: Helpers
 
-    private func rollGeminiDay() {
-        let today = Self.utcDay(Date())
-        if gemini.day != today {
-            gemini.day = today
-            gemini.used = 0
+    private func rollDayIfNeeded(slot: Int) {
+        let today = Self.pacificDay(Date())
+        var state = slots[slot] ?? SlotQuota(day: today)
+        if state.day != today {
+            state.day = today
+            state.used = 0
+            if let until = state.blockedUntil, until <= Date() {
+                state.blockedUntil = nil
+            }
+            slots[slot] = state
         }
     }
 
@@ -153,9 +155,10 @@ final class Quota: ObservableObject {
     }
 
     private func save() {
-        let (g, q) = locked { (gemini, groq) }
-        if let data = try? JSONEncoder().encode(g) { defaults.set(data, forKey: "quota.gemini") }
-        if let data = try? JSONEncoder().encode(q) { defaults.set(data, forKey: "quota.groq") }
+        let snapshot = locked { slots }
+        if let data = try? JSONEncoder().encode(snapshot) {
+            defaults.set(data, forKey: Self.storageKey)
+        }
         DispatchQueue.main.async { self.objectWillChange.send() }
     }
 
@@ -163,21 +166,21 @@ final class Quota: ObservableObject {
         UserDefaults.standard.data(forKey: key).flatMap { try? JSONDecoder().decode(type, from: $0) }
     }
 
-    private static func utcDay(_ date: Date) -> String {
+    private static func pacificDay(_ date: Date) -> String {
         var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = TimeZone(identifier: "UTC")!
+        calendar.timeZone = pacificTimeZone
         let c = calendar.dateComponents([.year, .month, .day], from: date)
         return "\(c.year ?? 0)-\(c.month ?? 0)-\(c.day ?? 0)"
     }
 
-    private static func nextUTCMidnight() -> Date {
+    private static func nextPacificMidnight() -> Date {
         var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = TimeZone(identifier: "UTC")!
+        calendar.timeZone = pacificTimeZone
         let start = calendar.startOfDay(for: Date())
         return calendar.date(byAdding: .day, value: 1, to: start) ?? Date()
     }
 
-    /// "07.00" today, "besok 07.00" tomorrow, otherwise with the date.
+    /// "15.00" today, "besok 15.00" tomorrow, otherwise with the date.
     private static func clock(_ date: Date) -> String {
         let time = date.formatted(date: .omitted, time: .shortened)
         if Calendar.current.isDateInToday(date) { return time }

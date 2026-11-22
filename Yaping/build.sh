@@ -31,8 +31,9 @@ echo "✓ Built $APP"
 
 if [ "${1:-}" = "install" ]; then
     pkill -x Yaping 2>/dev/null || true
+    sleep 0.5
     rm -rf /Applications/Yaping.app
     mv "$APP" /Applications/   # move, so only one copy exists
-    open /Applications/Yaping.app
+    open -n /Applications/Yaping.app
     echo "✓ Installed to /Applications and launched"
 fi

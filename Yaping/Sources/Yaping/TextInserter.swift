@@ -1,7 +1,12 @@
 import AppKit
 
 /// Types text into the focused app by pasting it, then puts the old clipboard back.
+@MainActor
 enum TextInserter {
+    private static var pendingRestore: DispatchWorkItem?
+    private static var savedOriginalClipboard: [NSPasteboardItem]?
+    private static var expectedChangeCount: Int?
+
     /// Returns false when macOS blocks synthetic keystrokes; the text is then left on the clipboard.
     @discardableResult
     static func insert(_ text: String, restoreClipboard: Bool, forceLeadingSpace: Bool = false) -> Bool {
@@ -11,7 +16,19 @@ enum TextInserter {
             pb.setString(text, forType: .string)
             return false
         }
-        let saved = restoreClipboard ? snapshot(pb) : nil
+
+        // If a previous progressive paste hasn't restored the clipboard yet and the user hasn't
+        // copied anything else, preserve the original user clipboard rather than snapshotting
+        // our own previous chunk.
+        if restoreClipboard {
+            let stillOurs = pendingRestore != nil && expectedChangeCount == pb.changeCount
+            pendingRestore?.cancel()
+            pendingRestore = nil
+            if !stillOurs {
+                savedOriginalClipboard = snapshot(pb)
+            }
+        }
+
         let startsWithWord = text.first.map { !$0.isPunctuation && !$0.isWhitespace } ?? false
         let addSpace = forceLeadingSpace ? startsWithWord : needsLeadingSpace(before: text)
         let text = addSpace ? " " + text : text
@@ -21,15 +38,23 @@ enum TextInserter {
         // Tells clipboard managers to skip this entry.
         pb.setData(Data(), forType: NSPasteboard.PasteboardType("org.nspasteboard.TransientType"))
         let change = pb.changeCount
+        expectedChangeCount = change
 
         pressCommandV()
 
-        guard let saved else { return true }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
-            guard pb.changeCount == change else { return }
+        guard restoreClipboard, savedOriginalClipboard != nil else { return true }
+        let work = DispatchWorkItem {
+            defer {
+                pendingRestore = nil
+                savedOriginalClipboard = nil
+                expectedChangeCount = nil
+            }
+            guard pb.changeCount == change, let saved = savedOriginalClipboard else { return }
             pb.clearContents()
             if !saved.isEmpty { pb.writeObjects(saved) }
         }
+        pendingRestore = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6, execute: work)
         return true
     }
 
