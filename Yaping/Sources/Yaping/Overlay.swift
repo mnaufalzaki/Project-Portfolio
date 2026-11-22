@@ -3,6 +3,7 @@ import SwiftUI
 
 final class OverlayModel: ObservableObject {
     enum Phase: Equatable {
+        case hidden
         case recording(locked: Bool)
         case processing
         case error(String)
@@ -10,7 +11,7 @@ final class OverlayModel: ObservableObject {
 
     static let barCount = 24
 
-    @Published var phase: Phase = .processing
+    @Published var phase: Phase = .hidden
     @Published var levels: [CGFloat] = Array(repeating: 0, count: barCount)
     @Published var currentLevel: CGFloat = 0
 
@@ -50,39 +51,89 @@ private final class HUDPanel: NSPanel {
 }
 
 /// The little floating pill at the bottom of the screen.
+/// Stays registered with macOS WindowServer (hidden via `alphaValue = 0` instead of `orderOut`)
+/// so it remains attached to every Space, including foreign Full-Screen Spaces like Safari.
 @MainActor
 final class OverlayController {
     let model = OverlayModel()
     private var hideWork: DispatchWorkItem?
+    private var spaceObserver: NSObjectProtocol?
+
+    private static let hudBehavior: NSWindow.CollectionBehavior = [
+        .canJoinAllSpaces,
+        .fullScreenAuxiliary,
+        .ignoresCycle,
+    ]
 
     private lazy var panel: HUDPanel = {
         let panel = HUDPanel(contentRect: NSRect(x: 0, y: 0, width: 420, height: 64),
                              styleMask: [.nonactivatingPanel, .borderless],
                              backing: .buffered, defer: false)
+        panel.isFloatingPanel = true
+        panel.worksWhenModal = true
         panel.isOpaque = false
         panel.backgroundColor = .clear
         panel.hasShadow = false
         panel.hidesOnDeactivate = false
         panel.canBecomeVisibleWithoutLogin = true
-        panel.level = .screenSaver
+        panel.level = NSWindow.Level(rawValue: Int(CGWindowLevelForKey(.assistiveTechHighWindow)))
         panel.ignoresMouseEvents = true
         panel.isReleasedWhenClosed = false
-        panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle]
+        panel.collectionBehavior = Self.hudBehavior
+        panel.alphaValue = 0
         panel.contentView = NSHostingView(rootView: OverlayView(model: model))
         return panel
     }()
+
+    init() {
+        // Pre-warm the panel on launch so WindowServer attaches it to all Spaces from the start.
+        DispatchQueue.main.async { [weak self] in
+            self?.warmUp()
+        }
+        spaceObserver = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.activeSpaceDidChangeNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                self.panel.collectionBehavior = Self.hudBehavior
+                if self.model.phase != .hidden {
+                    self.position()
+                }
+                self.panel.orderFrontRegardless()
+            }
+        }
+    }
+
+    deinit {
+        if let spaceObserver {
+            NSWorkspace.shared.notificationCenter.removeObserver(spaceObserver)
+        }
+    }
+
+    private func warmUp() {
+        position()
+        panel.alphaValue = 0
+        panel.orderFrontRegardless()
+    }
 
     func show(_ phase: OverlayModel.Phase) {
         hideWork?.cancel()
         if case .recording = phase, !isRecording { model.resetLevels() }
         model.phase = phase
         position()
+        panel.collectionBehavior = Self.hudBehavior
+        panel.alphaValue = 1
         panel.orderFrontRegardless()
     }
 
     func hide() {
         hideWork?.cancel()
-        panel.orderOut(nil)
+        model.phase = .hidden
+        // Hide via alphaValue instead of orderOut so WindowServer never detaches the panel
+        // from active Full-Screen Spaces.
+        panel.alphaValue = 0
     }
 
     func flash(error message: String) {
@@ -93,7 +144,7 @@ final class OverlayController {
     }
 
     private var isRecording: Bool {
-        if case .recording = model.phase, panel.isVisible { return true }
+        if case .recording = model.phase, panel.alphaValue > 0 { return true }
         return false
     }
 
@@ -110,52 +161,58 @@ struct OverlayView: View {
     @ObservedObject var model: OverlayModel
 
     var body: some View {
-        HStack(spacing: 11) {
-            switch model.phase {
-            case .recording(let locked):
-                RecordingDot(level: model.currentLevel)
-                Waveform(levels: model.levels)
-                if locked {
-                    Text("\(AppSettings.shared.hotkey.symbol) selesai · esc batal")
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(.white.opacity(0.68))
+        if model.phase == .hidden {
+            EmptyView()
+        } else {
+            HStack(spacing: 11) {
+                switch model.phase {
+                case .hidden:
+                    EmptyView()
+                case .recording(let locked):
+                    RecordingDot(level: model.currentLevel)
+                    Waveform(levels: model.levels)
+                    if locked {
+                        Text("\(AppSettings.shared.hotkey.symbol) selesai · esc batal")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(.white.opacity(0.68))
+                    }
+                case .processing:
+                    ProcessingDots()
+                    Text("Menulis…")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(.white.opacity(0.95))
+                case .error(let message):
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.system(size: 13))
+                        .foregroundStyle(.yellow)
+                    Text(message)
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(.white)
+                        .lineLimit(2)
                 }
-            case .processing:
-                ProcessingDots()
-                Text("Menulis…")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.95))
-            case .error(let message):
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .font(.system(size: 13))
-                    .foregroundStyle(.yellow)
-                Text(message)
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(.white)
-                    .lineLimit(2)
             }
+            .padding(.horizontal, 16)
+            .frame(height: 40)
+            .background(
+                Capsule()
+                    .fill(Color(white: 0.08).opacity(0.9))
+                    .shadow(color: Color.black.opacity(0.45), radius: 12, x: 0, y: 4)
+            )
+            .overlay(
+                Capsule()
+                    .stroke(
+                        LinearGradient(
+                            colors: [Color.white.opacity(0.24), Color.white.opacity(0.08)],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        ),
+                        lineWidth: 1
+                    )
+            )
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .environment(\.colorScheme, .dark)
+            .animation(.spring(response: 0.24, dampingFraction: 0.8), value: model.phase)
         }
-        .padding(.horizontal, 16)
-        .frame(height: 40)
-        .background(
-            Capsule()
-                .fill(Color(white: 0.08).opacity(0.9))
-                .shadow(color: Color.black.opacity(0.45), radius: 12, x: 0, y: 4)
-        )
-        .overlay(
-            Capsule()
-                .stroke(
-                    LinearGradient(
-                        colors: [Color.white.opacity(0.24), Color.white.opacity(0.08)],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    ),
-                    lineWidth: 1
-                )
-        )
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .environment(\.colorScheme, .dark)
-        .animation(.spring(response: 0.24, dampingFraction: 0.8), value: model.phase)
     }
 }
 
