@@ -226,8 +226,6 @@ final class DictationController: ObservableObject {
                 overlay.flash(error: "Teks disalin — tekan ⌘V. Izinkan Accessibility agar otomatis.")
             } else if result.failedParts > 0 {
                 overlay.flash(error: "\(result.failedParts) bagian gagal ditranskripsi (disimpan di menu bar untuk dicoba ulang).")
-            } else if let note = result.fallbackNote {
-                overlay.flash(error: "Pindah key — \(note)")
             } else if let warning = result.quotaWarning {
                 overlay.flash(error: warning)
             } else {
