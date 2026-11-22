@@ -4,9 +4,9 @@
 
 # Yaping
 
-**Aplikasi dikte suara gratis dan open source untuk macOS, ditenagai Google Gemini 3.5 Transcribe.**
+**Aplikasi dikte suara native dan open source untuk macOS, ditenagai Google Gemini 3.5 Transcribe.**
 
-Tekan <kbd>⌘</kbd><kbd>⌥</kbd>, bicara seperti biasa, tekan lagi, dan teks yang rapi lengkap dengan tanda baca langsung muncul di posisi kursormu.
+Tekan <kbd>⌘</kbd><kbd>⌥</kbd>, bicara seperti biasa, tekan lagi, dan teks rapi lengkap dengan tanda baca langsung muncul di posisi kursormu.
 
 ![macOS 14+](https://img.shields.io/badge/macOS-14%2B-000000?logo=apple&logoColor=white)
 ![Swift](https://img.shields.io/badge/Swift-native-F05138?logo=swift&logoColor=white)
@@ -23,25 +23,25 @@ Tekan <kbd>⌘</kbd><kbd>⌥</kbd>, bicara seperti biasa, tekan lagi, dan teks y
 
 ## Tentang Yaping
 
-Yaping adalah aplikasi menu bar ringan untuk macOS yang mengubah suaramu menjadi teks siap kirim di aplikasi apa pun: Notes, Google Docs, Slack, WhatsApp, Mail, VS Code, hingga Safari dalam mode layar penuh. Yaping dirancang untuk bahasa campuran Indonesia-Inggris dan berjalan langsung di atas **Google Gemini 3.5 Transcribe** (mode *smart*).
+Yaping adalah aplikasi menu bar native untuk macOS yang mengubah suara menjadi teks siap kirim di aplikasi apa pun: Notes, Google Docs, Slack, WhatsApp, Mail, VS Code, hingga Safari dalam mode layar penuh. Yaping dirancang khusus untuk pola bicara campuran Indonesia-Inggris dengan latensi rendah dan arsitektur audio-ke-teks yang efisien.
 
-## Fitur
+## Sorotan Rekayasa & Fitur Utama
 
-- **Hasil rapi, bukan transkrip mentah.** Dengan mode *smart* Gemini 3.5 Transcribe, kata pengisi ("eh", "emm") dan koreksi diri ("jam tiga, eh maksudnya jam empat") dirapikan otomatis sambil mempertahankan gaya bicaramu.
-- **Cepat dan hemat bandwidth.** Audio 16 kHz mono dikompresi secara native ke **M4A (AAC 32 kbps)** sebelum dikirim ke cloud (ukuran turun ~7-10x dibanding WAV), menjaga waktu tunggu di kisaran **1-2 detik**.
-- **Dikte panjang tanpa menunggu lama.** Rekaman panjang dipotong di jeda alami (*silence hysteresis* 400 ms) setiap **90-120 detik**, lalu diproses secara paralel selagi kamu masih bicara dengan urutan penempelan yang tetap terjaga.
-- **Tampil di atas aplikasi Full Screen.** HUD indikator gelombang suara (*waveform*) menggunakan panel non-activating tingkat layar penuh agar tetap terlihat di atas Safari atau aplikasi full-screen lainnya tanpa mencuri fokus.
-- **Dukungan 3 slot API key & pantauan kuota.** Mendukung hingga 3 slot API key Gemini di Keychain macOS dengan perpindahan otomatis jika satu key mencapai batas harian (*cooldown* mengikuti jam tunggu dari Google, reset harian di 00.00 Pacific Time / 15.00 WIB).
-- **Anti-kehilangan rekaman.** Filter durasi bicara nyata mencegah tombol tertekan tidak sengaja membuang kuota. Jika koneksi terputus dan semua percobaan gagal, audio disimpan sementara agar bisa dicoba transkrip ulang dari menu bar.
-- **Native dan ringan.** Dibangun murni dengan Swift/AppKit tanpa dependensi eksternal. API key disimpan aman di Keychain macOS.
+- **Transkripsi cerdas tanpa pemrosesan ganda.** Memanfaatkan **Google Gemini 3.5 Transcribe** (mode *smart*) langsung dalam satu jalur (*1-hop*): kata pengisi ("eh", "emm") dibuang dan koreksi diri ("jam tiga, eh maksudnya jam empat") dirapikan otomatis tanpa mengubah gaya bahasa asli pembicara.
+- **Kompresi audio native untuk latensi rendah.** Rekaman 16 kHz mono WAV dikompresi secara native di macOS ke **M4A (AAC 32 kbps)** sebelum dikirim ke cloud (ukuran payload turun **~7-10x** dalam ~28 ms di Apple Silicon), menjaga waktu tunggu di kisaran **1-2 detik**.
+- **Pipeline audio bebas blokir (*lock-free audio tap*).** Seluruh penulisan disk, konversi *sample rate*, dan rotasi segmen dipindahkan ke serial `ioQueue` terpisah sehingga *real-time audio thread* tidak pernah mengalami *dropout*.
+- **Segmentasi adaptif & transkripsi paralel.** Rekaman panjang dipotong pada jeda bicara nyata (*silence hysteresis* 400 ms) setiap **90-120 detik**, lalu diunggah dan ditranskripsi secara paralel selagi pengguna masih bicara sambil menjaga urutan penempelan yang deterministik.
+- **HUD Full-Screen tanpa mencuri fokus.** Indikator gelombang suara (*waveform*) dibangun di atas subclass `NSPanel` non-activating (`screenSaver` level, `fullScreenAuxiliary`, `hidesOnDeactivate = false`) sehingga tetap tampil di atas aplikasi full-screen seperti Safari tanpa memicu perpindahan Space.
+- **Ketahanan operasional (*fault tolerance*).** Dilengkapi filter durasi bicara nyata untuk mencegah request kosong akibat tombol tertekan tidak sengaja, *retry* otomatis per segmen, *cooldown* berbasis jadwal reset Pacific Time, pemulihan clipboard tahan *race condition*, serta *safety net* penyimpanan lokal jika seluruh percobaan jaringan gagal.
+- **Native dan ringan.** Dibangun murni dengan Swift 5, AppKit, SwiftUI, dan AVFoundation tanpa dependensi pihak ketiga. Kredensial API disimpan aman di Keychain macOS.
 
 ## Instalasi
 
 **Kebutuhan:** Mac dengan chip Apple Silicon (M1 atau lebih baru) dan macOS 14 atau lebih baru.
 
-### Build dari source (disarankan untuk versi terbaru)
+### Build dari source
 
-Butuh Xcode Command Line Tools (`xcode-select --install`). Aplikasi Xcode lengkap tidak diperlukan.
+Membutuhkan Xcode Command Line Tools (`xcode-select --install`). Aplikasi Xcode lengkap tidak diperlukan.
 
 ```bash
 git clone https://github.com/mnaufalzaki/Project-Portfolio.git
@@ -51,89 +51,125 @@ cd Project-Portfolio/Yaping
 
 ### Pengaturan pertama kali
 
-1. **Berikan izin.** Di *System Settings › Privacy & Security*, nyalakan Yaping di **Accessibility** (di macOS 27 namanya *Device Control and Data Access*) dan **Input Monitoring**. Izinkan akses mikrofon saat diminta.
-2. **Masukkan API key Gemini.** Klik ikon di menu bar › *Pengaturan* › *Mesin AI*, lalu tempel API key dari [Google AI Studio](https://aistudio.google.com/apikey) pada slot API Key 1 (opsional: isi juga Key 2 dan Key 3 sebagai cadangan).
+1. **Berikan izin sistem.** Di *System Settings › Privacy & Security*, aktifkan Yaping pada **Accessibility** (di macOS 27 bernama *Device Control and Data Access*) dan **Input Monitoring**. Izinkan akses mikrofon saat diminta.
+2. **Hubungkan API key Gemini.** Klik ikon Yaping di menu bar › *Pengaturan* › *Mesin AI*, lalu masukkan API key dari [Google AI Studio](https://aistudio.google.com/apikey).
 3. **Mulai dikte.** Klik di kolom teks mana pun, tekan <kbd>⌘</kbd><kbd>⌥</kbd>, bicara, lalu tekan <kbd>⌘</kbd><kbd>⌥</kbd> lagi.
 
 > [!NOTE]
-> Build ditandatangani secara ad-hoc. Kalau kamu build dari source, macOS menganggap setiap build baru sebagai aplikasi baru, jadi izin Accessibility dan Input Monitoring perlu dinyalakan ulang setelah setiap pemasangan ulang.
+> Build dari source ditandatangani secara ad-hoc. macOS menganggap setiap build ad-hoc baru sebagai aplikasi baru, sehingga izin Accessibility dan Input Monitoring perlu diaktifkan ulang setelah pemasangan ulang.
 
 ## Cara pakai
 
 | Shortcut | Aksi |
 | --- | --- |
-| <kbd>⌘</kbd><kbd>⌥</kbd> | Mulai merekam. Tombol tidak perlu ditahan. |
-| <kbd>⌘</kbd><kbd>⌥</kbd> lagi | Selesai: teks ditranskripsi dan ditempel di kursor |
-| <kbd>Esc</kbd> | Batalkan rekaman |
-| <kbd>⌘</kbd><kbd>⌥</kbd> + tombol lain | Dianggap shortcut biasa (misalnya <kbd>⌘</kbd><kbd>⌥</kbd><kbd>D</kbd>), dan rekaman dibatalkan |
+| <kbd>⌘</kbd><kbd>⌥</kbd> | Mulai merekam (mode toggle, tombol tidak perlu ditahan) |
+| <kbd>⌘</kbd><kbd>⌥</kbd> lagi | Selesai: audio dikompresi, ditranskripsi, dan ditempel di posisi kursor |
+| <kbd>Esc</kbd> | Batalkan rekaman yang sedang berjalan |
+| <kbd>⌘</kbd><kbd>⌥</kbd> + tombol lain | Dianggap shortcut biasa (misalnya <kbd>⌘</kbd><kbd>⌥</kbd><kbd>D</kbd>), rekaman dibatalkan |
 
-Mode tahan-untuk-bicara, tombol <kbd>Fn</kbd>, dan tombol modifier kanan tersedia di *Pengaturan › Umum*. Klik ikon di menu bar kapan saja untuk melihat sisa kuota harian, menempel ulang hasil terakhir, mencoba ulang rekaman yang gagal, atau membuka riwayat dikte.
+Mode tahan-untuk-bicara (*hold-to-talk*), tombol <kbd>Fn</kbd>, dan tombol modifier kanan tersedia di *Pengaturan › Umum*. Klik ikon menu bar kapan saja untuk memantau kuota harian, menempel ulang hasil terakhir, mencoba ulang rekaman gagal, atau membuka riwayat dikte.
 
-## Arsitektur
+## Arsitektur Sistem
 
-Yaping berjalan sebagai satu proses native di menu bar dengan alur 1-hop langsung ke Google Gemini 3.5 Transcribe.
+Yaping berjalan sebagai satu proses native di menu bar dengan pemisahan tanggung jawab yang jelas antara *audio capture*, *compression*, *concurrent pipeline*, *credential failover*, dan *system-wide text injection*.
 
 ```mermaid
 flowchart TB
-    subgraph App["Yaping.app (menu bar)"]
-        HK[HotkeyMonitor<br/>pendengar ⌘⌥ global] --> DC[DictationController<br/>pengatur alur]
-        DC --> REC[AudioRecorder<br/>AVAudioEngine + ioQueue<br/>segmen 90-120 dtk di jeda]
-        REC --> CP[ChunkPipeline<br/>transkripsi paralel, urutan terjaga]
-        CP --> AC[AudioCompressor<br/>WAV ke M4A AAC 32 kbps]
-        AC --> TR[Transcriber + GeminiTranscriber<br/>rotasi Key 1 -> 2 -> 3 + retry]
+    subgraph App["Yaping.app (Native macOS Menu Bar)"]
+        HK[HotkeyMonitor<br/>pendengar ⌘⌥ global] --> DC[DictationController<br/>state machine & filter suara]
+        DC --> REC[AudioRecorder<br/>AVAudioEngine + serial ioQueue<br/>silence hysteresis 400 ms]
+        REC --> CP[ChunkPipeline<br/>transkripsi paralel, urutan deterministik]
+        CP --> AC[AudioCompressor<br/>native WAV ke M4A AAC 32 kbps]
+        AC --> TR[Transcriber + GeminiTranscriber<br/>failover kredensial & retry]
         TR --> TI[TextInserter<br/>tempel ⌘V, pulihkan clipboard]
         DC --> OV[Overlay<br/>HUD full-screen & waveform]
-        TR --> QU[Quota<br/>hitung per key, reset 00.00 PT]
-        CP -.->|gagal total| FR[FailedRecordings<br/>simpan sementara untuk retry]
-        KS[KeyStore<br/>Keychain macOS] -.-> TR
+        TR --> QU[Quota<br/>cooldown & reset 00.00 PT]
+        CP -.->|gagal jaringan| FR[FailedRecordings<br/>safety net lokal untuk retry]
+        KS[KeyStore<br/>macOS Keychain] -.-> TR
         TI --> HI[HistoryStore]
     end
     TR -->|HTTPS Interactions API| GEM[Google Gemini 3.5 Transcribe]
 ```
 
-| Komponen | Tugas |
+| Komponen | Tanggung Jawab |
 |---|---|
-| `HotkeyMonitor` | Mendengarkan shortcut global untuk memulai atau menghentikan dikte. |
-| `DictationController` | Mengatur satu sesi dikte dari awal sampai teks ditempel, termasuk filter hening dan coba ulang rekaman gagal. |
-| `AudioRecorder` | Merekam audio 16 kHz mono di serial `ioQueue` (bebas disk I/O di audio thread) dan memotong segmen pada jeda >= 400 ms setelah 90-120 detik. |
-| `AudioCompressor` | Mengonversi WAV ke M4A (AAC 32 kbps) secara native sebelum upload cloud agar ukuran payload ~7-10x lebih kecil. |
-| `ChunkPipeline` | Mentranskripsi segmen secara paralel selagi kamu masih bicara sambil menjaga urutan output dan menyimpan segmen yang gagal. |
-| `Transcriber` & `GeminiTranscriber` | Memanggil Gemini Interactions API secara berurutan melalui slot Key 1, Key 2, dan Key 3 dengan *cooldown* otomatis saat kena HTTP 429. |
-| `Quota` | Mencatat pemakaian kuota per key dengan jadwal reset 00.00 Pacific Time (14.00/15.00 WIB). |
-| `TextInserter` | Menempel teks di posisi kursor lewat clipboard, lalu memulihkan isi clipboard asli pengguna. |
-| `Overlay` | Panel HUD non-activating (`screenSaver` level) dengan animasi waveform simetris yang tampil di atas aplikasi full-screen. |
-| `KeyStore`, `HistoryStore`, `FailedRecordings` | Penyimpanan API key di Keychain macOS, riwayat dikte, dan cadangan sementara audio gagal. |
+| `HotkeyMonitor` | Mendengarkan shortcut global dan membedakan dikte dari kombinasi shortcut aplikasi lain. |
+| `DictationController` | Mengatur siklus sesi dikte, filter durasi suara nyata, status HUD, dan aksi coba ulang rekaman gagal. |
+| `AudioRecorder` | Merekam audio 16 kHz mono, memindahkan seluruh konversi & disk I/O ke serial `ioQueue`, dan memotong segmen pada jeda >= 400 ms setelah 90-120 detik. |
+| `AudioCompressor` | Mengonversi WAV ke M4A (AAC 32 kbps) secara native via CoreAudio dengan fallback otomatis ke WAV jika diperlukan. |
+| `ChunkPipeline` | Menjalankan transkripsi segmen secara paralel selagi pengguna berbicara sambil menjaga urutan output dan penempelan bertahap. |
+| `Transcriber` & `GeminiTranscriber` | Mengelola panggilan Gemini Interactions API, *failover* kredensial, normalisasi teks, dan penanganan respons hening tanpa error palsu. |
+| `Quota` | Memantau estimasi pemakaian harian, membaca durasi tunggu dari respons HTTP 429, dan menyinkronkan reset harian pada 00.00 Pacific Time. |
+| `TextInserter` | Menyisipkan teks di kursor lewat `CGEvent` (`⌘V`) dengan spasi otomatis berbasis Accessibility dan pemulihan clipboard asli yang aman dari *race condition*. |
+| `Overlay` | Panel HUD non-activating (`screenSaver` level) dengan animasi waveform simetris yang tetap muncul di atas aplikasi full-screen. |
+| `KeyStore`, `HistoryStore`, `FailedRecordings` | Penyimpanan kredensial di Keychain macOS, riwayat dikte dengan salin cepat, dan cadangan sementara audio gagal (maksimal 5 file). |
 
-## Privasi
+## Alur Kerja End-to-End
 
-- API key disimpan di Keychain macOS, tidak pernah di file teks biasa.
-- File audio sementara langsung dihapus begitu transkripsi selesai (kecuali saat gagal total, maksimal 5 file disimpan lokal untuk coba ulang).
-- Log debug (`~/Library/Logs/Yaping.log`) hanya mencatat waktu proses dan jumlah kata, tidak pernah isi ucapanmu.
-- Di tier gratis Google AI Studio, Google dapat menggunakan audio untuk meningkatkan produknya; aktifkan *Pay-As-You-Go* di Google Cloud Billing jika membutuhkan jaminan privasi penuh.
+```mermaid
+flowchart LR
+    A[⌘⌥ ditekan] --> B[AVAudioEngine<br/>WAV 16 kHz mono di ioQueue]
+    B --> C{Jeda >= 400 ms<br/>setelah 90-120 dtk?}
+    C -- ya --> D[Tutup segmen,<br/>lanjut rekam]
+    D --> E[Kompres M4A<br/>& transkrip paralel]
+    E --> F[Normalisasi teks<br/>berurutan]
+    F --> G[Tempel di kursor<br/>clipboard dipulihkan]
+    C -- ⌘⌥ ditekan --> H{Suara nyata<br/>>= 250 ms?}
+    H -- tidak --> I[Skip lokal<br/>0 request API]
+    H -- ya --> E
+```
 
-## Build dari source
+## Hasil Pengujian
 
-Yaping di-compile langsung dengan `swiftc` lewat [`build.sh`](build.sh), tanpa proyek Xcode atau Swift Package.
+Diukur di MacBook Air Apple M3 dalam pemakaian harian:
+
+| Pengujian | Hasil Terukur |
+| --- | --- |
+| Kompresi native `AudioCompressor` (WAV 10 dtk 16 kHz mono) | **324 KB -> 44,5 KB (7,3x lebih kecil)** dalam **27,8 ms** |
+| Dikte pendek & menengah (5-47 dtk) | Waktu tunggu **1,0-1,8 detik** setelah berhenti bicara |
+| Dikte panjang (83,8 dtk, 97 kata) | Waktu tunggu **1,57 detik** setelah berhenti bicara |
+| Ketekan tombol tidak sengaja (< 0,5 dtk / tanpa suara) | Di-skip lokal di Mac (**0 request API**, 0 halusinasi) |
+| Beban saat diam | Ringan, native Swift/AppKit tanpa proses server lokal |
+
+## Privasi & Keamanan
+
+- Seluruh API key disimpan terenkripsi di Keychain login macOS, tidak pernah di file teks biasa.
+- File audio sementara langsung dihapus setelah transkripsi berhasil; hanya segmen yang gagal total yang disimpan sementara secara lokal (maksimal 5 file) agar pengguna bisa mencoba ulang.
+- Log debug (`~/Library/Logs/Yaping.log`) hanya mencatat durasi, jumlah kata, dan waktu proses, tidak pernah mencatat isi ucapan.
+- Audio dikirim langsung dari Mac ke endpoint resmi Google Gemini API via HTTPS. Untuk jaminan privasi data penuh (tidak digunakan untuk peningkatan produk), aktifkan *Pay-As-You-Go* pada project Google Cloud Billing.
+
+## Mengatasi Masalah
+
+| Masalah | Solusi |
+| --- | --- |
+| Tidak ada reaksi saat menekan <kbd>⌘</kbd><kbd>⌥</kbd> | Aktifkan ulang Yaping di *Accessibility* dan *Input Monitoring* (diperlukan setelah setiap build ulang ad-hoc). |
+| Muncul pesan *"Teks disalin — tekan ⌘V"* | Izin Accessibility belum aktif, sehingga teks disalin ke clipboard alih-alih ditempel otomatis. |
+| Rekaman gagal karena koneksi terputus | Klik ikon menu bar › *Coba Ulang Rekaman Gagal* begitu koneksi kembali normal. |
+| Menguji pipeline tanpa mikrofon | `/Applications/Yaping.app/Contents/MacOS/Yaping --selftest rekaman.wav` |
+
+## Struktur Proyek
+
+Yaping dikompilasi langsung menggunakan `swiftc` melalui [`build.sh`](build.sh) tanpa proyek Xcode atau Swift Package Manager.
 
 <details>
-<summary>Struktur proyek</summary>
+<summary>Lihat daftar file sumber</summary>
 
 ```
 Sources/Yaping/
-├── YapingApp.swift            Titik masuk (+ mode --selftest)
-├── AppDelegate.swift          Menu bar, main menu (⌘V/⌘C), jendela pengaturan
-├── DictationController.swift  Alur rekam -> transkripsi -> tempel + retry gagal
-├── ChunkPipeline.swift        Transkripsi segmen paralel dengan urutan terjaga
+├── YapingApp.swift            Titik masuk aplikasi (+ mode --selftest)
+├── AppDelegate.swift          Menu bar, main menu (⌘V/⌘C/⌘A), jendela pengaturan
+├── DictationController.swift  State machine rekam -> transkrip -> tempel + retry gagal
+├── ChunkPipeline.swift        Transkripsi segmen paralel dengan urutan deterministik
 ├── AudioRecorder.swift        Rekaman 16 kHz mono, serial ioQueue, silence hysteresis
-├── AudioCompressor.swift      Kompresi native WAV ke M4A (AAC 32 kbps)
-├── HotkeyMonitor.swift        Deteksi global ⌘⌥ / Fn / modifier
-├── Transcriber.swift          Rotasi API key Gemini 1 -> 2 -> 3 + perapian spasi
-├── Gemini.swift               Klien Gemini 3.5 Transcribe (Interactions API)
-├── Quota.swift                Pantauan kuota per key, reset 00.00 Pacific Time
-├── FailedRecordings.swift     Penyimpanan sementara audio gagal (maks 5 file)
-├── TextInserter.swift         Tempel via ⌘V, spasi otomatis, pulihkan clipboard
-├── Overlay.swift              HUD full-screen dengan animasi waveform simetris
-├── SettingsView.swift         Pengaturan SwiftUI (Umum, Mesin AI, Riwayat)
+├── AudioCompressor.swift      Kompresi native CoreAudio WAV ke M4A (AAC 32 kbps)
+├── HotkeyMonitor.swift        Deteksi shortcut global ⌘⌥ / Fn / modifier kanan
+├── Transcriber.swift          Orkestrasi transkripsi, failover kredensial, normalisasi
+├── Gemini.swift               Klien Google Gemini 3.5 Transcribe (Interactions API)
+├── Quota.swift                Pantauan kuota, cooldown HTTP 429, reset 00.00 PT
+├── FailedRecordings.swift     Penyimpanan lokal audio gagal untuk retry (maks 5 file)
+├── TextInserter.swift         Tempel ⌘V, spasi otomatis, pemulihan clipboard aman
+├── Overlay.swift              HUD non-activating full-screen & animasi waveform
+├── SettingsView.swift         Antarmuka Pengaturan SwiftUI (Umum, Mesin AI, Riwayat)
 └── …                          Settings, KeyStore, History, Log, Permissions, SelfTest
 ```
 
@@ -141,7 +177,7 @@ Sources/Yaping/
 
 ## Pembuat
 
-Dibuat oleh **Naufal Zaki** ([naufalzaki.tech](https://naufalzaki.tech) · [@mnaufalzaki](https://github.com/mnaufalzaki)). Terinspirasi dari [Wispr Flow](https://wisprflow.ai/) dan ditenagai oleh [Google Gemini API](https://ai.google.dev/).
+Dirancang dan dibangun oleh **Naufal Zaki** ([naufalzaki.tech](https://naufalzaki.tech) · [@mnaufalzaki](https://github.com/mnaufalzaki)). Terinspirasi dari [Wispr Flow](https://wisprflow.ai/) dan ditenagai oleh [Google Gemini API](https://ai.google.dev/).
 
 ## Lisensi
 
