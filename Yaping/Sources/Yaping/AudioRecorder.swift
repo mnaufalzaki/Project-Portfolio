@@ -1,4 +1,6 @@
 import AVFoundation
+import CoreAudio
+import CoreMedia
 
 enum RecorderError: LocalizedError {
     case noInput, converter
@@ -11,20 +13,28 @@ enum RecorderError: LocalizedError {
     }
 }
 
-/// Records the default input to a 16 kHz mono WAV — the format speech APIs like best.
-/// - Reuses a pre-prepared `AVAudioEngine` (rebuilt automatically on device/config changes)
-///   so startup latency drops from ~0.5-2s to ~50-150ms without keeping the mic active while idle.
-/// - Runs engine start/stop on `engineQueue` so the Main Thread never stalls.
-/// - Offloads PCM conversion, disk writes, and chunk rotation to `ioQueue` so the real-time
-///   audio tap thread never blocks on I/O or locks.
-final class AudioRecorder: @unchecked Sendable {
-    /// A finished piece of a chunked recording.
+/// Records audio to 16 kHz mono Int16 WAV using `AVCaptureSession` + `AVCaptureAudioDataOutput`.
+///
+/// Why `AVCaptureSession` instead of `AVAudioEngine`:
+/// - When a Bluetooth headset (e.g. EarFun Air 2 / AirPods) is the system default input,
+///   `AVAudioEngine` forces a 1-2.5s Bluetooth A2DP->HFP profile switch on every start and
+///   causes sample-rate mismatches (`16 kHz` vs `44.1 kHz`).
+/// - `AVCaptureSession` targets a specific `AVCaptureDevice` (preferring the built-in MacBook
+///   mic in Auto mode when default input is Bluetooth/Continuity), cutting start latency to
+///   ~35-50 ms while keeping Bluetooth playback audio crystal clear.
+/// - `AVCaptureAudioDataOutput` delivers 16 kHz mono Int16 PCM directly on our serial `ioQueue`.
+final class AudioRecorder: NSObject, AVCaptureAudioDataOutputSampleBufferDelegate, @unchecked Sendable {
     struct Chunk {
         let url: URL
         let duration: TimeInterval
         let peak: Float
         /// Accumulated time with sustained audio above ambient noise (ignoring initial key-click).
         let speechDuration: TimeInterval
+    }
+
+    struct MicDevice: Identifiable, Hashable {
+        let id: String
+        let name: String
     }
 
     var onLevel: ((Float) -> Void)?
@@ -35,18 +45,17 @@ final class AudioRecorder: @unchecked Sendable {
     private(set) var duration: TimeInterval = 0
     private(set) var speechDuration: TimeInterval = 0
 
-    private let engineQueue = DispatchQueue(label: "com.naufalzaki.yaping.audio-engine", qos: .userInteractive)
+    private let sessionQueue = DispatchQueue(label: "com.naufalzaki.yaping.capture-session", qos: .userInteractive)
     private let ioQueue = DispatchQueue(label: "com.naufalzaki.yaping.audio-io", qos: .userInitiated)
     private let outFormat = AVAudioFormat(commonFormat: .pcmFormatInt16, sampleRate: 16_000, channels: 1, interleaved: true)!
 
-    // State exclusively owned by `engineQueue`.
-    private var engine: AVAudioEngine?
-    private var configObserver: NSObjectProtocol?
+    // Owned by `sessionQueue`.
+    private var session: AVCaptureSession?
+    private var configuredDeviceID: String?
     private var isRecording = false
 
-    // State exclusively owned by `ioQueue` while recording.
+    // Owned by `ioQueue`.
     private var file: AVAudioFile?
-    private var converter: AVAudioConverter?
     private var fileURL: URL?
     private var framesWritten: AVAudioFramePosition = 0
     private var currentPeak: Float = 0
@@ -60,32 +69,38 @@ final class AudioRecorder: @unchecked Sendable {
     /// Ignore the very first 150ms of a recording when counting speech so hotkey thuds / Tink sound don't trigger transcription.
     private static let startupIgnoreWindow: TimeInterval = 0.15
 
-    deinit {
-        if let configObserver {
-            NotificationCenter.default.removeObserver(configObserver)
-        }
+    static func availableMicrophones() -> [MicDevice] {
+        let discovery = AVCaptureDevice.DiscoverySession(
+            deviceTypes: [.microphone],
+            mediaType: .audio,
+            position: .unspecified
+        )
+        return discovery.devices
+            .filter { $0.transportType != Int32(kAudioDeviceTransportTypeVirtual) }
+            .map { MicDevice(id: $0.uniqueID, name: $0.localizedName) }
     }
 
-    /// Pre-warms the `AVAudioEngine` graph in the background (stopped, mic stays OFF)
-    /// so the very first dictation starts immediately.
+    /// Pre-configures the `AVCaptureSession` (stopped, mic OFF) so the first dictation starts in ~40 ms.
     func warmUp() {
         guard Permissions.microphone == .authorized else { return }
-        engineQueue.async { [weak self] in
+        let preferredID = AppSettings.shared.microphoneID
+        sessionQueue.async { [weak self] in
             guard let self, !self.isRecording else { return }
-            _ = self.prepareEngineIfNeeded()
+            _ = try? self.prepareSession(preferredID: preferredID)
         }
     }
 
-    /// Starts recording asynchronously off the Main Thread so the UI responds instantly.
+    /// Starts recording asynchronously off the Main Thread (~35-50 ms on built-in Mac mic).
     func startAsync(chunked range: ClosedRange<TimeInterval>? = nil) async throws {
+        let preferredID = AppSettings.shared.microphoneID
         try await withCheckedThrowingContinuation { (c: CheckedContinuation<Void, Error>) in
-            engineQueue.async { [weak self] in
+            sessionQueue.async { [weak self] in
                 guard let self else {
                     c.resume(throwing: RecorderError.noInput)
                     return
                 }
                 do {
-                    try self.startLocked(chunked: range)
+                    try self.startLocked(chunked: range, preferredID: preferredID)
                     c.resume()
                 } catch {
                     c.resume(throwing: error)
@@ -94,20 +109,15 @@ final class AudioRecorder: @unchecked Sendable {
         }
     }
 
-    /// Stops recording, flushes any queued audio writes, and returns the finished file.
-    /// Keeps the `AVAudioEngine` pre-prepared (stopped) for fast subsequent starts.
+    /// Stops recording, flushes any queued audio writes, and returns the finished WAV file.
     func stop() -> URL? {
-        return engineQueue.sync {
+        return sessionQueue.sync {
             guard isRecording else { return nil }
             isRecording = false
-            engine?.inputNode.removeTap(onBus: 0)
-            engine?.stop()
-            // Re-prepare while stopped so the next start is near-instant (mic stays off).
-            engine?.prepare()
+            session?.stopRunning()
             return ioQueue.sync {
                 Self.close(file)
                 file = nil
-                converter = nil
                 let finishedURL = fileURL
                 fileURL = nil
                 self.duration = Double(framesWritten) / outFormat.sampleRate
@@ -122,53 +132,85 @@ final class AudioRecorder: @unchecked Sendable {
         if let url = stop() { try? FileManager.default.removeItem(at: url) }
     }
 
-    // MARK: Engine management (exclusively on `engineQueue`)
+    // MARK: Capture session management (exclusively on `sessionQueue`)
 
-    private func prepareEngineIfNeeded() -> AVAudioEngine {
-        if let existing = engine { return existing }
-        let newEngine = AVAudioEngine()
-        _ = newEngine.inputNode
-        newEngine.prepare()
-        if let oldObserver = configObserver {
-            NotificationCenter.default.removeObserver(oldObserver)
+    private func resolveDevice(preferredID: String) -> AVCaptureDevice? {
+        let discovery = AVCaptureDevice.DiscoverySession(
+            deviceTypes: [.microphone],
+            mediaType: .audio,
+            position: .unspecified
+        )
+        let devices = discovery.devices
+        guard !devices.isEmpty else { return nil }
+
+        // Explicit user choice if connected.
+        if !preferredID.isEmpty, let exact = devices.first(where: { $0.uniqueID == preferredID }) {
+            return exact
         }
-        configObserver = NotificationCenter.default.addObserver(
-            forName: .AVAudioEngineConfigurationChange,
-            object: newEngine,
-            queue: nil
-        ) { [weak self] _ in
-            self?.engineQueue.async { [weak self] in
-                guard let self, !self.isRecording else { return }
-                self.engine = nil
+
+        // Auto mode: use system default unless it's Bluetooth or Continuity iPhone
+        // (which incur 1-2.5s HFP/wireless startup delays); in that case prefer built-in Mac mic.
+        let builtIn = devices.first { $0.transportType == Int32(kAudioDeviceTransportTypeBuiltIn) }
+        if let sysDefault = AVCaptureDevice.default(for: .audio) {
+            let t = UInt32(bitPattern: sysDefault.transportType)
+            let isSlowWireless = (t == kAudioDeviceTransportTypeBluetooth)
+                || (t == kAudioDeviceTransportTypeBluetoothLE)
+                || (t == 0x63707479) // Continuity Camera/Mic ('cpty')
+            if isSlowWireless, let builtIn {
+                return builtIn
             }
+            return sysDefault
         }
-        engine = newEngine
-        return newEngine
+        return builtIn ?? devices.first
     }
 
-    private func startLocked(chunked range: ClosedRange<TimeInterval>?) throws {
-        // Try with the pre-prepared engine first; if the audio route went stale (e.g. sleep/AirPods),
-        // rebuild a fresh engine once and retry.
-        do {
-            try startWithCurrentEngine(chunked: range)
-        } catch {
-            engine = nil
-            try startWithCurrentEngine(chunked: range)
+    private func prepareSession(preferredID: String) throws -> AVCaptureSession {
+        guard let device = resolveDevice(preferredID: preferredID) else {
+            throw RecorderError.noInput
         }
+        if let existing = session, configuredDeviceID == device.uniqueID {
+            return existing
+        }
+
+        let newSession = AVCaptureSession()
+        newSession.beginConfiguration()
+        let input = try AVCaptureDeviceInput(device: device)
+        guard newSession.canAddInput(input) else {
+            newSession.commitConfiguration()
+            throw RecorderError.noInput
+        }
+        newSession.addInput(input)
+
+        let output = AVCaptureAudioDataOutput()
+        output.audioSettings = [
+            AVFormatIDKey: kAudioFormatLinearPCM,
+            AVSampleRateKey: 16_000,
+            AVNumberOfChannelsKey: 1,
+            AVLinearPCMBitDepthKey: 16,
+            AVLinearPCMIsFloatKey: false,
+            AVLinearPCMIsBigEndianKey: false,
+            AVLinearPCMIsNonInterleaved: false,
+        ]
+        output.setSampleBufferDelegate(self, queue: ioQueue)
+        guard newSession.canAddOutput(output) else {
+            newSession.commitConfiguration()
+            throw RecorderError.converter
+        }
+        newSession.addOutput(output)
+        newSession.commitConfiguration()
+
+        session = newSession
+        configuredDeviceID = device.uniqueID
+        Log.write("audio input ready: \(device.localizedName)")
+        return newSession
     }
 
-    private func startWithCurrentEngine(chunked range: ClosedRange<TimeInterval>?) throws {
-        let engine = prepareEngineIfNeeded()
-        let input = engine.inputNode
-        let inFormat = input.outputFormat(forBus: 0)
-        guard inFormat.sampleRate > 0, inFormat.channelCount > 0 else { throw RecorderError.noInput }
-        guard let converter = AVAudioConverter(from: inFormat, to: outFormat) else { throw RecorderError.converter }
-
+    private func startLocked(chunked range: ClosedRange<TimeInterval>?, preferredID: String) throws {
+        let captureSession = try prepareSession(preferredID: preferredID)
         let (url, file) = try makeFile()
 
         ioQueue.sync {
             self.file = file
-            self.converter = converter
             self.fileURL = url
             self.chunkRange = range
             self.framesWritten = 0
@@ -180,30 +222,61 @@ final class AudioRecorder: @unchecked Sendable {
         self.peakLevel = 0
         self.speechDuration = 0
 
-        input.removeTap(onBus: 0)
-        input.installTap(onBus: 0, bufferSize: 2048, format: inFormat) { [weak self] buffer, _ in
-            guard let self else { return }
-            let level = Self.level(of: buffer)
-            let callback = self.onLevel
-            DispatchQueue.main.async { callback?(level) }
-            guard let copied = Self.copy(buffer) else { return }
-            self.ioQueue.async { [weak self] in
-                self?.writeBuffer(copied, level: level)
-            }
-        }
-        do {
-            try engine.start()
-            isRecording = true
-        } catch {
-            input.removeTap(onBus: 0)
+        captureSession.startRunning()
+        guard captureSession.isRunning else {
             ioQueue.sync {
                 Self.close(self.file)
                 self.file = nil
-                self.converter = nil
                 if let url = self.fileURL { try? FileManager.default.removeItem(at: url) }
                 self.fileURL = nil
             }
-            throw error
+            // Reset cached session so next attempt rebuilds cleanly.
+            session = nil
+            configuredDeviceID = nil
+            throw RecorderError.noInput
+        }
+        isRecording = true
+    }
+
+    // MARK: Sample buffer delegate (runs exclusively on `ioQueue`)
+
+    func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
+        guard let file,
+              let blockBuffer = CMSampleBufferGetDataBuffer(sampleBuffer) else { return }
+
+        let totalBytes = CMBlockBufferGetDataLength(blockBuffer)
+        let frameCount = totalBytes / MemoryLayout<Int16>.size
+        guard frameCount > 0,
+              let pcm = AVAudioPCMBuffer(pcmFormat: outFormat, frameCapacity: AVAudioFrameCount(frameCount)),
+              let dst = pcm.int16ChannelData?[0] else { return }
+
+        let status = CMBlockBufferCopyDataBytes(blockBuffer, atOffset: 0, dataLength: totalBytes, destination: dst)
+        guard status == kCMBlockBufferNoErr else { return }
+        pcm.frameLength = AVAudioFrameCount(frameCount)
+
+        let level = Self.level(of: dst, count: frameCount)
+        currentPeak = max(currentPeak, level)
+
+        try? file.write(from: pcm)
+        framesWritten += AVAudioFramePosition(frameCount)
+
+        let bufferSeconds = Double(frameCount) / outFormat.sampleRate
+        let elapsedSeconds = Double(framesWritten) / outFormat.sampleRate
+        if level < Self.pauseLevel {
+            silentDuration += bufferSeconds
+        } else {
+            silentDuration = 0
+            if elapsedSeconds > Self.startupIgnoreWindow {
+                currentSpeechDuration += bufferSeconds
+            }
+        }
+
+        let levelCallback = onLevel
+        let chunk = rotateIfDue()
+        let chunkCallback = onChunk
+        DispatchQueue.main.async {
+            levelCallback?(level)
+            if let chunk { chunkCallback?(chunk) }
         }
     }
 
@@ -219,49 +292,6 @@ final class AudioRecorder: @unchecked Sendable {
         let file = try AVAudioFile(forWriting: url, settings: outFormat.settings,
                                    commonFormat: .pcmFormatInt16, interleaved: true)
         return (url, file)
-    }
-
-    private func writeBuffer(_ buffer: AVAudioPCMBuffer, level: Float) {
-        guard let file, let converter else { return }
-        currentPeak = max(currentPeak, level)
-
-        let ratio = outFormat.sampleRate / buffer.format.sampleRate
-        let capacity = AVAudioFrameCount(Double(buffer.frameLength) * ratio) + 64
-        var writtenFrames: AVAudioFrameCount = 0
-        if let out = AVAudioPCMBuffer(pcmFormat: outFormat, frameCapacity: capacity) {
-            var consumed = false
-            var error: NSError?
-            converter.convert(to: out, error: &error) { _, status in
-                if consumed {
-                    status.pointee = .noDataNow
-                    return nil
-                }
-                consumed = true
-                status.pointee = .haveData
-                return buffer
-            }
-            if error == nil, out.frameLength > 0 {
-                try? file.write(from: out)
-                writtenFrames = out.frameLength
-                framesWritten += AVAudioFramePosition(out.frameLength)
-            }
-        }
-
-        let bufferSeconds = Double(writtenFrames) / outFormat.sampleRate
-        let elapsedSeconds = Double(framesWritten) / outFormat.sampleRate
-        if level < Self.pauseLevel {
-            silentDuration += bufferSeconds
-        } else {
-            silentDuration = 0
-            if elapsedSeconds > Self.startupIgnoreWindow {
-                currentSpeechDuration += bufferSeconds
-            }
-        }
-
-        if let chunk = rotateIfDue() {
-            let chunkCallback = onChunk
-            DispatchQueue.main.async { chunkCallback?(chunk) }
-        }
     }
 
     private func rotateIfDue() -> Chunk? {
@@ -281,28 +311,16 @@ final class AudioRecorder: @unchecked Sendable {
         return chunk
     }
 
-    private static func copy(_ src: AVAudioPCMBuffer) -> AVAudioPCMBuffer? {
-        guard let dst = AVAudioPCMBuffer(pcmFormat: src.format, frameCapacity: src.frameLength) else { return nil }
-        dst.frameLength = src.frameLength
-        let srcList = UnsafeMutableAudioBufferListPointer(UnsafeMutablePointer(mutating: src.audioBufferList))
-        let dstList = UnsafeMutableAudioBufferListPointer(dst.mutableAudioBufferList)
-        for i in 0..<min(srcList.count, dstList.count) {
-            if let srcPtr = srcList[i].mData, let dstPtr = dstList[i].mData {
-                let bytes = min(Int(srcList[i].mDataByteSize), Int(dstList[i].mDataByteSize))
-                memcpy(dstPtr, srcPtr, bytes)
-                dstList[i].mDataByteSize = UInt32(bytes)
-            }
-        }
-        return dst
-    }
-
-    /// RMS mapped onto 0…1 over a −50…0 dB range.
-    private static func level(of buffer: AVAudioPCMBuffer) -> Float {
-        guard let data = buffer.floatChannelData?[0], buffer.frameLength > 0 else { return 0 }
-        let n = Int(buffer.frameLength)
+    /// RMS of Int16 PCM mapped onto 0…1 over a −50…0 dB range.
+    private static func level(of samples: UnsafePointer<Int16>, count: Int) -> Float {
+        guard count > 0 else { return 0 }
         var sum: Float = 0
-        for i in 0..<n { sum += data[i] * data[i] }
-        let rms = sqrt(sum / Float(n))
+        let scale: Float = 1.0 / 32768.0
+        for i in 0..<count {
+            let v = Float(samples[i]) * scale
+            sum += v * v
+        }
+        let rms = sqrt(sum / Float(count))
         let db = 20 * log10(max(rms, 1e-7))
         return max(0, min(1, (db + 50) / 50))
     }

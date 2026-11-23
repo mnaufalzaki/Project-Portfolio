@@ -24,12 +24,15 @@ private final class GeneralModel: ObservableObject {
     }
     @Published var accessibility = Permissions.accessibilityTrusted(prompt: false)
     @Published var microphone = Permissions.microphone
+    @Published var mics: [AudioRecorder.MicDevice] = AudioRecorder.availableMicrophones()
 
     func refresh() {
         let ax = Permissions.accessibilityTrusted(prompt: false)
         if ax != accessibility { accessibility = ax }
         let mic = Permissions.microphone
         if mic != microphone { microphone = mic }
+        let list = AudioRecorder.availableMicrophones()
+        if list != mics { mics = list }
     }
 }
 
@@ -60,6 +63,15 @@ private struct GeneralTab: View {
                 if s.hotkey == .fn {
                     Hint("Tip: di System Settings › Keyboard, set “Press 🌐 key to” ke “Do Nothing” supaya Fn tidak membuka emoji/dikte bawaan.")
                 }
+            }
+            Section("Mikrofon") {
+                Picker("Input suara", selection: $s.microphoneID) {
+                    Text("Otomatis (cepat, utamakan mic Mac saat pakai Bluetooth)").tag("")
+                    ForEach(m.mics) { mic in
+                        Text(mic.name).tag(mic.id)
+                    }
+                }
+                Hint("Memakai mic Bluetooth TWS memaksa perpindahan profil audio 1–2,5 detik tiap mulai rekam. Mode Otomatis tetap memakai TWS untuk output suara, tapi merekam lewat mic bawaan MacBook (~40 ms).")
             }
             Section("Perilaku") {
                 Toggle("Bunyi saat mulai & selesai", isOn: $s.playSounds)

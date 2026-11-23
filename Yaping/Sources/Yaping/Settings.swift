@@ -104,6 +104,8 @@ final class AppSettings: ObservableObject {
     @Published var geminiModel: String { didSet { d.set(geminiModel, forKey: "geminiModel") } }
     @Published var geminiSmart: Bool { didSet { d.set(geminiSmart, forKey: "geminiSmart") } }
     @Published var language: String { didSet { d.set(language, forKey: "language") } }
+    /// Empty string = Auto (prefers built-in Mac mic when default is Bluetooth/Continuity to avoid 1-2.5s startup lag).
+    @Published var microphoneID: String { didSet { d.set(microphoneID, forKey: "microphoneID") } }
     @Published var playSounds: Bool { didSet { d.set(playSounds, forKey: "playSounds") } }
     @Published var restoreClipboard: Bool { didSet { d.set(restoreClipboard, forKey: "restoreClipboard") } }
     /// Long recordings paste each piece as soon as it's transcribed.
@@ -126,6 +128,7 @@ final class AppSettings: ObservableObject {
             : savedModel
         geminiSmart = d.bool(forKey: "geminiSmart")
         language = d.string(forKey: "language") ?? "auto"
+        microphoneID = d.string(forKey: "microphoneID") ?? ""
         playSounds = d.bool(forKey: "playSounds")
         restoreClipboard = d.bool(forKey: "restoreClipboard")
         progressiveInsert = d.bool(forKey: "progressiveInsert")
