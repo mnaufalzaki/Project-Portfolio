@@ -134,7 +134,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.addItem(item("Tempel Ulang Teks Terakhir", #selector(pasteLast)))
         let failedCount = FailedRecordings.shared.count
         if failedCount > 0 {
-            menu.addItem(item("⚠️ Coba Ulang Rekaman Gagal (\(failedCount))", #selector(retryFailed)))
+            let failedItem = NSMenuItem(title: "⚠️ Rekaman Gagal (\(failedCount))", action: nil, keyEquivalent: "")
+            let failedMenu = NSMenu()
+            failedMenu.addItem(item("Coba Ulang Terbaru", #selector(retryFailed)))
+            failedMenu.addItem(.separator())
+            failedMenu.addItem(item("Hapus Semua Rekaman Gagal", #selector(clearFailed)))
+            failedItem.submenu = failedMenu
+            menu.addItem(failedItem)
         }
 
         let historyItem = NSMenuItem(title: "Riwayat", action: nil, keyEquivalent: "")
@@ -167,6 +173,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc private func toggleDictation() { controller.toggle() }
     @objc private func pasteLast() { controller.pasteLast() }
     @objc private func retryFailed() { controller.retryLastFailed() }
+    @objc private func clearFailed() { FailedRecordings.shared.clearAll() }
     @objc private func openAccessibility() {
         _ = Permissions.accessibilityTrusted(prompt: true)
         Permissions.openAccessibilitySettings()

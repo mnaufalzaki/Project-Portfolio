@@ -17,7 +17,7 @@ enum RecorderError: LocalizedError {
 /// - Runs engine start/stop on `engineQueue` so the Main Thread never stalls.
 /// - Offloads PCM conversion, disk writes, and chunk rotation to `ioQueue` so the real-time
 ///   audio tap thread never blocks on I/O or locks.
-final class AudioRecorder {
+final class AudioRecorder: @unchecked Sendable {
     /// A finished piece of a chunked recording.
     struct Chunk {
         let url: URL

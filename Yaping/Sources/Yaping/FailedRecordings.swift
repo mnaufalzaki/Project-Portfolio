@@ -15,6 +15,7 @@ final class FailedRecordings: ObservableObject {
     @Published private(set) var items: [Item] = []
 
     private static let maxStored = 5
+    private static let maxAge: TimeInterval = 24 * 3600
     private static let folder: URL = {
         FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("Yaping/failed", isDirectory: true)
@@ -67,14 +68,18 @@ final class FailedRecordings: ObservableObject {
             items = []
             return
         }
-        items = urls
-            .filter { $0.pathExtension.lowercased() == "wav" }
-            .map { url in
-                let values = try? url.resourceValues(forKeys: [.creationDateKey, .contentModificationDateKey])
-                let date = values?.creationDate ?? values?.contentModificationDate ?? Date.distantPast
-                return Item(url: url, date: date)
+        let cutoff = Date().addingTimeInterval(-Self.maxAge)
+        var kept: [Item] = []
+        for url in urls where url.pathExtension.lowercased() == "wav" {
+            let values = try? url.resourceValues(forKeys: [.creationDateKey, .contentModificationDateKey])
+            let date = values?.creationDate ?? values?.contentModificationDate ?? Date.distantPast
+            if date < cutoff {
+                try? fm.removeItem(at: url)
+            } else {
+                kept.append(Item(url: url, date: date))
             }
-            .sorted { $0.date > $1.date }
+        }
+        items = kept.sorted { $0.date > $1.date }
     }
 
     private func trimExcess() {
