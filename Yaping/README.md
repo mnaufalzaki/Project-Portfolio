@@ -33,7 +33,7 @@ Yaping is a lightweight native menu-bar app for macOS that turns speech into rea
 - **Pause-aware segmentation & concurrent transcription.** Extended recordings split on sustained natural pauses (400 ms silence hysteresis) every **90-120 seconds** and transcribe concurrently while you keep speaking, while strictly preserving output and paste order.
 - **Full-screen overlay HUD.** Built on a non-activating `NSPanel` subclass (`screenSaver` level, `fullScreenAuxiliary`, `hidesOnDeactivate = false`) so the waveform indicator stays visible above full-screen apps like Safari without stealing focus or triggering Space switches.
 - **Operational fault tolerance.** Includes real-speech duration filtering to ignore accidental hotkey toggles, automatic per-segment retries, Pacific Time quota reset tracking with HTTP 429 cooldown parsing, race-free clipboard restoration, and a local safety net to retry failed recordings from the menu bar.
-- **Pure Swift/AppKit.** Zero third-party dependencies. API credentials are stored securely in the macOS login Keychain.
+- **Pure Swift/AppKit.** Zero third-party dependencies. API credentials are stored locally in `~/Library/Application Support/Yaping/keys.json` with owner-only (`0600`) file permissions.
 
 ## Installation
 
@@ -136,7 +136,7 @@ Measured on an Apple M3 MacBook Air during daily use:
 
 ## Privacy & Security
 
-- API keys are stored encrypted in the macOS login Keychain, never in plain text files.
+- API keys are stored locally in `~/Library/Application Support/Yaping/keys.json` with `0600` (owner read/write only) permissions, outside the repository directory.
 - Temporary audio files are deleted immediately after successful transcription; only completely failed chunks are preserved locally (up to 5 files) for manual retry.
 - The debug log (`~/Library/Logs/Yaping.log`) records timings and word counts only, never spoken content.
 - Audio is transmitted directly from your Mac to the official Google Gemini API over HTTPS. For strict data privacy (no product-improvement training), enable Pay-As-You-Go on your Google Cloud Billing project.

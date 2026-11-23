@@ -33,7 +33,7 @@ Yaping adalah aplikasi menu bar native untuk macOS yang mengubah suara menjadi t
 - **Segmentasi adaptif & transkripsi paralel.** Rekaman panjang dipotong pada jeda bicara nyata (*silence hysteresis* 400 ms) setiap **90-120 detik**, lalu diunggah dan ditranskripsi secara paralel selagi pengguna masih bicara sambil menjaga urutan penempelan yang deterministik.
 - **HUD Full-Screen tanpa mencuri fokus.** Indikator gelombang suara (*waveform*) dibangun di atas subclass `NSPanel` non-activating (`screenSaver` level, `fullScreenAuxiliary`, `hidesOnDeactivate = false`) sehingga tetap tampil di atas aplikasi full-screen seperti Safari tanpa memicu perpindahan Space.
 - **Ketahanan operasional (*fault tolerance*).** Dilengkapi filter durasi bicara nyata untuk mencegah request kosong akibat tombol tertekan tidak sengaja, *retry* otomatis per segmen, *cooldown* berbasis jadwal reset Pacific Time, pemulihan clipboard tahan *race condition*, serta *safety net* penyimpanan lokal jika seluruh percobaan jaringan gagal.
-- **Native dan ringan.** Dibangun murni dengan Swift 5, AppKit, SwiftUI, dan AVFoundation tanpa dependensi pihak ketiga. Kredensial API disimpan aman di Keychain macOS.
+- **Native dan ringan.** Dibangun murni dengan Swift 5, AppKit, SwiftUI, dan AVFoundation tanpa dependensi pihak ketiga. Kredensial API disimpan secara lokal di `~/Library/Application Support/Yaping/keys.json` dengan izin akses khusus pemilik (`chmod 600`).
 
 ## Instalasi
 
@@ -133,7 +133,7 @@ Diukur di MacBook Air Apple M3 dalam pemakaian harian:
 
 ## Privasi & Keamanan
 
-- Seluruh API key disimpan terenkripsi di Keychain login macOS, tidak pernah di file teks biasa.
+- Seluruh API key disimpan secara lokal di `~/Library/Application Support/Yaping/keys.json` dengan izin `0600` (hanya dapat dibaca akun macOS pemilik, berada di luar folder repositori).
 - File audio sementara langsung dihapus setelah transkripsi berhasil; hanya segmen yang gagal total yang disimpan sementara secara lokal (maksimal 5 file) agar pengguna bisa mencoba ulang.
 - Log debug (`~/Library/Logs/Yaping.log`) hanya mencatat durasi, jumlah kata, dan waktu proses, tidak pernah mencatat isi ucapan.
 - Audio dikirim langsung dari Mac ke endpoint resmi Google Gemini API via HTTPS. Untuk jaminan privasi data penuh (tidak digunakan untuk peningkatan produk), aktifkan *Pay-As-You-Go* pada project Google Cloud Billing.

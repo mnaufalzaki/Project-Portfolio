@@ -267,7 +267,7 @@ private final class KeyModel: ObservableObject {
             error = nil
             Quota.shared.notifyChanged()
         } else {
-            error = "Gagal menyimpan ke Keychain — coba lagi"
+            error = "Gagal menyimpan API key — coba lagi"
         }
         status = KeyStore.status(account)
     }
