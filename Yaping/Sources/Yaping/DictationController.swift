@@ -22,6 +22,8 @@ final class DictationController: ObservableObject {
     private var heldSinceStart = false
     private var pipeline: ChunkPipeline?
     private var recordingStarted = Date()
+    private var startSessionID: UUID?
+    private var soundCache: [String: NSSound] = [:]
     /// Keeps the Mac awake while recording and transcribing.
     private var awake: NSObjectProtocol?
 
@@ -35,6 +37,10 @@ final class DictationController: ObservableObject {
     init() {
         recorder.onLevel = { [weak self] level in self?.overlay.model.push(level) }
         recorder.onChunk = { [weak self] chunk in self?.pipeline?.add(chunk) }
+        recorder.warmUp()
+        for name in ["Tink", "Pop", "Funk"] {
+            if let s = NSSound(named: NSSound.Name(name)) { soundCache[name] = s }
+        }
     }
 
     func hotkeyDown() {
@@ -71,6 +77,7 @@ final class DictationController: ObservableObject {
 
     func cancel(silently: Bool = false) {
         guard case .recording = state else { return }
+        startSessionID = nil
         recorder.cancel()
         pipeline?.cancel()
         pipeline = nil
@@ -139,21 +146,36 @@ final class DictationController: ObservableObject {
         default:
             break
         }
-        do {
-            pipeline = ChunkPipeline(settings: settings, progressive: settings.progressiveInsert)
-            try recorder.start(chunked: Self.pieceLength)
-            recordingStarted = Date()
-            stayAwake(true)
-            state = .recording(locked: locked)
-            overlay.show(.recording(locked: locked))
-            sound("Tink")
-        } catch {
-            pipeline = nil
-            overlay.flash(error: error.localizedDescription)
+        let sid = UUID()
+        startSessionID = sid
+        pipeline = ChunkPipeline(settings: settings, progressive: settings.progressiveInsert)
+        recordingStarted = Date()
+        stayAwake(true)
+        state = .recording(locked: locked)
+        overlay.show(.recording(locked: locked))
+
+        Task {
+            do {
+                try await recorder.startAsync(chunked: Self.pieceLength)
+                guard self.startSessionID == sid, case .recording = self.state else {
+                    self.recorder.cancel()
+                    return
+                }
+                self.recordingStarted = Date()
+                self.sound("Tink")
+            } catch {
+                guard self.startSessionID == sid else { return }
+                self.startSessionID = nil
+                self.pipeline = nil
+                self.stayAwake(false)
+                self.state = .idle
+                self.overlay.flash(error: error.localizedDescription)
+            }
         }
     }
 
     private func finishRecording() {
+        startSessionID = nil
         guard let url = recorder.stop(), let pipeline else {
             state = .idle
             stayAwake(false)
@@ -246,6 +268,8 @@ final class DictationController: ObservableObject {
 
     private func sound(_ name: String) {
         guard settings.playSounds else { return }
-        NSSound(named: NSSound.Name(name))?.play()
+        let s = soundCache[name] ?? NSSound(named: NSSound.Name(name))
+        s?.stop()
+        s?.play()
     }
 }

@@ -11,11 +11,14 @@ enum RecorderError: LocalizedError {
     }
 }
 
-/// Records the default input to a 16 kHz mono WAV — the format Whisper-style APIs like best.
-/// Disk I/O, sample-rate conversion, and chunk rotation run on a dedicated serial queue so the
-/// real-time audio tap thread never blocks on disk writes or locks.
+/// Records the default input to a 16 kHz mono WAV — the format speech APIs like best.
+/// - Reuses a pre-prepared `AVAudioEngine` (rebuilt automatically on device/config changes)
+///   so startup latency drops from ~0.5-2s to ~50-150ms without keeping the mic active while idle.
+/// - Runs engine start/stop on `engineQueue` so the Main Thread never stalls.
+/// - Offloads PCM conversion, disk writes, and chunk rotation to `ioQueue` so the real-time
+///   audio tap thread never blocks on I/O or locks.
 final class AudioRecorder {
-    /// A finished piece of a chunked (meeting) recording.
+    /// A finished piece of a chunked recording.
     struct Chunk {
         let url: URL
         let duration: TimeInterval
@@ -32,9 +35,14 @@ final class AudioRecorder {
     private(set) var duration: TimeInterval = 0
     private(set) var speechDuration: TimeInterval = 0
 
-    private var engine: AVAudioEngine?
+    private let engineQueue = DispatchQueue(label: "com.naufalzaki.yaping.audio-engine", qos: .userInteractive)
     private let ioQueue = DispatchQueue(label: "com.naufalzaki.yaping.audio-io", qos: .userInitiated)
     private let outFormat = AVAudioFormat(commonFormat: .pcmFormatInt16, sampleRate: 16_000, channels: 1, interleaved: true)!
+
+    // State exclusively owned by `engineQueue`.
+    private var engine: AVAudioEngine?
+    private var configObserver: NSObjectProtocol?
+    private var isRecording = false
 
     // State exclusively owned by `ioQueue` while recording.
     private var file: AVAudioFile?
@@ -52,11 +60,105 @@ final class AudioRecorder {
     /// Ignore the very first 150ms of a recording when counting speech so hotkey thuds / Tink sound don't trigger transcription.
     private static let startupIgnoreWindow: TimeInterval = 0.15
 
-    /// `chunked` rolls over to a new file at the first sustained pause after `range.lowerBound` seconds
-    /// (or hard at `upperBound`), so long recordings can be transcribed piece by piece while they run.
-    func start(chunked range: ClosedRange<TimeInterval>? = nil) throws {
-        // Fresh engine each time so a switched input device (AirPods etc.) gets the right format.
-        let engine = AVAudioEngine()
+    deinit {
+        if let configObserver {
+            NotificationCenter.default.removeObserver(configObserver)
+        }
+    }
+
+    /// Pre-warms the `AVAudioEngine` graph in the background (stopped, mic stays OFF)
+    /// so the very first dictation starts immediately.
+    func warmUp() {
+        guard Permissions.microphone == .authorized else { return }
+        engineQueue.async { [weak self] in
+            guard let self, !self.isRecording else { return }
+            _ = self.prepareEngineIfNeeded()
+        }
+    }
+
+    /// Starts recording asynchronously off the Main Thread so the UI responds instantly.
+    func startAsync(chunked range: ClosedRange<TimeInterval>? = nil) async throws {
+        try await withCheckedThrowingContinuation { (c: CheckedContinuation<Void, Error>) in
+            engineQueue.async { [weak self] in
+                guard let self else {
+                    c.resume(throwing: RecorderError.noInput)
+                    return
+                }
+                do {
+                    try self.startLocked(chunked: range)
+                    c.resume()
+                } catch {
+                    c.resume(throwing: error)
+                }
+            }
+        }
+    }
+
+    /// Stops recording, flushes any queued audio writes, and returns the finished file.
+    /// Keeps the `AVAudioEngine` pre-prepared (stopped) for fast subsequent starts.
+    func stop() -> URL? {
+        return engineQueue.sync {
+            guard isRecording else { return nil }
+            isRecording = false
+            engine?.inputNode.removeTap(onBus: 0)
+            engine?.stop()
+            // Re-prepare while stopped so the next start is near-instant (mic stays off).
+            engine?.prepare()
+            return ioQueue.sync {
+                Self.close(file)
+                file = nil
+                converter = nil
+                let finishedURL = fileURL
+                fileURL = nil
+                self.duration = Double(framesWritten) / outFormat.sampleRate
+                self.peakLevel = currentPeak
+                self.speechDuration = currentSpeechDuration
+                return finishedURL
+            }
+        }
+    }
+
+    func cancel() {
+        if let url = stop() { try? FileManager.default.removeItem(at: url) }
+    }
+
+    // MARK: Engine management (exclusively on `engineQueue`)
+
+    private func prepareEngineIfNeeded() -> AVAudioEngine {
+        if let existing = engine { return existing }
+        let newEngine = AVAudioEngine()
+        _ = newEngine.inputNode
+        newEngine.prepare()
+        if let oldObserver = configObserver {
+            NotificationCenter.default.removeObserver(oldObserver)
+        }
+        configObserver = NotificationCenter.default.addObserver(
+            forName: .AVAudioEngineConfigurationChange,
+            object: newEngine,
+            queue: nil
+        ) { [weak self] _ in
+            self?.engineQueue.async { [weak self] in
+                guard let self, !self.isRecording else { return }
+                self.engine = nil
+            }
+        }
+        engine = newEngine
+        return newEngine
+    }
+
+    private func startLocked(chunked range: ClosedRange<TimeInterval>?) throws {
+        // Try with the pre-prepared engine first; if the audio route went stale (e.g. sleep/AirPods),
+        // rebuild a fresh engine once and retry.
+        do {
+            try startWithCurrentEngine(chunked: range)
+        } catch {
+            engine = nil
+            try startWithCurrentEngine(chunked: range)
+        }
+    }
+
+    private func startWithCurrentEngine(chunked range: ClosedRange<TimeInterval>?) throws {
+        let engine = prepareEngineIfNeeded()
         let input = engine.inputNode
         let inFormat = input.outputFormat(forBus: 0)
         guard inFormat.sampleRate > 0, inFormat.channelCount > 0 else { throw RecorderError.noInput }
@@ -78,6 +180,7 @@ final class AudioRecorder {
         self.peakLevel = 0
         self.speechDuration = 0
 
+        input.removeTap(onBus: 0)
         input.installTap(onBus: 0, bufferSize: 2048, format: inFormat) { [weak self] buffer, _ in
             guard let self else { return }
             let level = Self.level(of: buffer)
@@ -88,9 +191,9 @@ final class AudioRecorder {
                 self?.writeBuffer(copied, level: level)
             }
         }
-        engine.prepare()
         do {
             try engine.start()
+            isRecording = true
         } catch {
             input.removeTap(onBus: 0)
             ioQueue.sync {
@@ -102,30 +205,9 @@ final class AudioRecorder {
             }
             throw error
         }
-        self.engine = engine
     }
 
-    /// Stops recording, flushes any queued audio writes, and returns the finished file.
-    func stop() -> URL? {
-        engine?.inputNode.removeTap(onBus: 0)
-        engine?.stop()
-        engine = nil
-        return ioQueue.sync {
-            Self.close(file)
-            file = nil
-            converter = nil
-            let finishedURL = fileURL
-            fileURL = nil
-            self.duration = Double(framesWritten) / outFormat.sampleRate
-            self.peakLevel = currentPeak
-            self.speechDuration = currentSpeechDuration
-            return finishedURL
-        }
-    }
-
-    func cancel() {
-        if let url = stop() { try? FileManager.default.removeItem(at: url) }
-    }
+    // MARK: File I/O (exclusively on `ioQueue`)
 
     private static func close(_ file: AVAudioFile?) {
         if #available(macOS 15.0, *) { file?.close() }
@@ -139,7 +221,6 @@ final class AudioRecorder {
         return (url, file)
     }
 
-    /// Runs exclusively on `ioQueue`. Converts and writes PCM frames, then rotates if due.
     private func writeBuffer(_ buffer: AVAudioPCMBuffer, level: Float) {
         guard let file, let converter else { return }
         currentPeak = max(currentPeak, level)
@@ -183,7 +264,6 @@ final class AudioRecorder {
         }
     }
 
-    /// Called exclusively on `ioQueue`. Swaps in a fresh file and hands back the finished one.
     private func rotateIfDue() -> Chunk? {
         guard let range = chunkRange, let finishedURL = fileURL else { return nil }
         let seconds = Double(framesWritten) / outFormat.sampleRate
