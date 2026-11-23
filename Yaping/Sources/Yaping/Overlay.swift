@@ -9,17 +9,21 @@ final class OverlayModel: ObservableObject {
         case error(String)
     }
 
-    static let barCount = 26
+    static let barCount = 36
 
     @Published var phase: Phase = .hidden
     @Published var levels: [CGFloat] = Array(repeating: 0, count: barCount)
+    private var smoothedLevel: CGFloat = 0
 
     func push(_ level: Float) {
+        let raw = CGFloat(max(0, min(1, level)))
+        smoothedLevel = smoothedLevel * 0.35 + raw * 0.65
         levels.removeFirst()
-        levels.append(CGFloat(level))
+        levels.append(smoothedLevel)
     }
 
     func resetLevels() {
+        smoothedLevel = 0
         levels = Array(repeating: 0, count: Self.barCount)
     }
 }
@@ -187,14 +191,14 @@ private struct Waveform: View {
     let levels: [CGFloat]
 
     var body: some View {
-        HStack(alignment: .center, spacing: 2) {
+        HStack(alignment: .center, spacing: 1.5) {
             ForEach(levels.indices, id: \.self) { i in
                 Capsule()
                     .fill(Color.white)
-                    .frame(width: 2.5, height: max(3, levels[i] * 22))
+                    .frame(width: 2, height: max(3, levels[i] * 22))
             }
         }
         .frame(height: 24)
-        .animation(.linear(duration: 0.08), value: levels)
+        .animation(.linear(duration: 0.035), value: levels)
     }
 }

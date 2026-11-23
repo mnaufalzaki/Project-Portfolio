@@ -62,11 +62,10 @@ final class AudioRecorder: NSObject, AVCaptureAudioDataOutputSampleBufferDelegat
     private var currentSpeechDuration: TimeInterval = 0
     private var chunkRange: ClosedRange<TimeInterval>?
     private var silentDuration: TimeInterval = 0
-    // Waveform UI throttle: accumulate samples and emit one level per ~43 ms,
-    // matching the original AVAudioEngine tap cadence (2048 frames @ 48 kHz).
+    // Waveform UI throttle: emit one level at ~60 FPS (every ~16.7 ms) for fluid animation.
     private var uiSumSquares: Float = 0
     private var uiFrames = 0
-    private static let uiFramesPerLevel = 683 // 16 kHz * 0.0427 s
+    private static let uiFramesPerLevel = 267 // 16 kHz / 60 FPS
 
     /// Silence must hold this long before splitting a chunk, avoiding mid-word cuts.
     private static let pauseLevel: Float = 0.15
