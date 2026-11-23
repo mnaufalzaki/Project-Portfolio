@@ -62,6 +62,11 @@ final class AudioRecorder: NSObject, AVCaptureAudioDataOutputSampleBufferDelegat
     private var currentSpeechDuration: TimeInterval = 0
     private var chunkRange: ClosedRange<TimeInterval>?
     private var silentDuration: TimeInterval = 0
+    // Waveform UI throttle: accumulate samples and emit one level per ~43 ms,
+    // matching the original AVAudioEngine tap cadence (2048 frames @ 48 kHz).
+    private var uiSumSquares: Float = 0
+    private var uiFrames = 0
+    private static let uiFramesPerLevel = 683 // 16 kHz * 0.0427 s
 
     /// Silence must hold this long before splitting a chunk, avoiding mid-word cuts.
     private static let pauseLevel: Float = 0.15
@@ -148,20 +153,13 @@ final class AudioRecorder: NSObject, AVCaptureAudioDataOutputSampleBufferDelegat
             return exact
         }
 
-        // Auto mode: use system default unless it's Bluetooth or Continuity iPhone
-        // (which incur 1-2.5s HFP/wireless startup delays); in that case prefer built-in Mac mic.
-        let builtIn = devices.first { $0.transportType == Int32(kAudioDeviceTransportTypeBuiltIn) }
-        if let sysDefault = AVCaptureDevice.default(for: .audio) {
-            let t = UInt32(bitPattern: sysDefault.transportType)
-            let isSlowWireless = (t == kAudioDeviceTransportTypeBluetooth)
-                || (t == kAudioDeviceTransportTypeBluetoothLE)
-                || (t == 0x63707479) // Continuity Camera/Mic ('cpty')
-            if isSlowWireless, let builtIn {
-                return builtIn
-            }
-            return sysDefault
+        // Default: always the built-in MacBook microphone (fast start, no Bluetooth HFP switch,
+        // TWS earbuds keep playing in high-quality A2DP). Falls back to the system default
+        // only if there is no built-in mic (e.g. a Mac mini without one).
+        if let builtIn = devices.first(where: { $0.transportType == Int32(kAudioDeviceTransportTypeBuiltIn) }) {
+            return builtIn
         }
-        return builtIn ?? devices.first
+        return AVCaptureDevice.default(for: .audio) ?? devices.first
     }
 
     private func prepareSession(preferredID: String) throws -> AVCaptureSession {
@@ -217,6 +215,8 @@ final class AudioRecorder: NSObject, AVCaptureAudioDataOutputSampleBufferDelegat
             self.currentPeak = 0
             self.currentSpeechDuration = 0
             self.silentDuration = 0
+            self.uiSumSquares = 0
+            self.uiFrames = 0
         }
         self.duration = 0
         self.peakLevel = 0
@@ -271,11 +271,28 @@ final class AudioRecorder: NSObject, AVCaptureAudioDataOutputSampleBufferDelegat
             }
         }
 
+        // Accumulate for the waveform so it scrolls at the original pace.
+        let scale: Float = 1.0 / 32768.0
+        for i in 0..<frameCount {
+            let v = Float(dst[i]) * scale
+            uiSumSquares += v * v
+        }
+        uiFrames += frameCount
+        var uiLevel: Float?
+        if uiFrames >= Self.uiFramesPerLevel {
+            let rms = sqrt(uiSumSquares / Float(uiFrames))
+            let db = 20 * log10(max(rms, 1e-7))
+            uiLevel = max(0, min(1, (db + 50) / 50))
+            uiSumSquares = 0
+            uiFrames = 0
+        }
+
         let levelCallback = onLevel
         let chunk = rotateIfDue()
         let chunkCallback = onChunk
+        guard uiLevel != nil || chunk != nil else { return }
         DispatchQueue.main.async {
-            levelCallback?(level)
+            if let uiLevel { levelCallback?(uiLevel) }
             if let chunk { chunkCallback?(chunk) }
         }
     }

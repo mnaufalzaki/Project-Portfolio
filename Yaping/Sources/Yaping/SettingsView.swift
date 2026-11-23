@@ -66,12 +66,12 @@ private struct GeneralTab: View {
             }
             Section("Mikrofon") {
                 Picker("Input suara", selection: $s.microphoneID) {
-                    Text("Otomatis (cepat, utamakan mic Mac saat pakai Bluetooth)").tag("")
+                    Text("Bawaan (MacBook Air Microphone)").tag("")
                     ForEach(m.mics) { mic in
                         Text(mic.name).tag(mic.id)
                     }
                 }
-                Hint("Memakai mic Bluetooth TWS memaksa perpindahan profil audio 1–2,5 detik tiap mulai rekam. Mode Otomatis tetap memakai TWS untuk output suara, tapi merekam lewat mic bawaan MacBook (~40 ms).")
+                Hint("Secara bawaan Yaping selalu merekam lewat mic MacBook, walaupun TWS/earphone Bluetooth tersambung. Suara tetap keluar di TWS dengan kualitas normal. Memilih mic TWS membuat awal rekaman tertunda 1–2,5 detik karena perpindahan profil Bluetooth.")
             }
             Section("Perilaku") {
                 Toggle("Bunyi saat mulai & selesai", isOn: $s.playSounds)
