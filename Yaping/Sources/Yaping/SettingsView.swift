@@ -10,7 +10,7 @@ struct SettingsView: View {
             EngineTab().tabItem { Label("Mesin AI", systemImage: "sparkles") }
             HistoryTab().tabItem { Label("Riwayat", systemImage: "clock.arrow.circlepath") }
         }
-        .frame(width: 580, height: 540)
+        .frame(width: 580, height: 590)
     }
 }
 
@@ -145,8 +145,8 @@ private struct EngineTab: View {
                 }
             }
 
-            Section("API Key Gemini (1, 2, 3)") {
-                Hint("Isi 1 sampai 3 API key dari Google AI Studio. Jika Key 1 kena batas kuota harian atau error, Yaping otomatis pindah ke Key 2 lalu Key 3.")
+            Section("API Key Gemini (1–4)") {
+                Hint("Isi 1 sampai 4 API key dari Google AI Studio. Jika satu key kena batas kuota harian atau error, Yaping otomatis pindah ke key berikutnya.")
                 ForEach(GeminiKeySlot.all) { item in
                     VStack(alignment: .leading, spacing: 4) {
                         KeyField(title: item.title, account: item.account)

@@ -73,7 +73,7 @@ enum HotkeyMode: String, CaseIterable, Identifiable {
     }
 }
 
-/// Identifies each of the 3 Gemini API key slots stored in macOS Keychain.
+/// Identifies each of the 4 Gemini API key slots stored locally.
 /// Slot 1 keeps the original `"gemini"` account name so existing saved keys continue working seamlessly.
 struct GeminiKeySlot: Identifiable {
     let slot: Int
@@ -85,6 +85,7 @@ struct GeminiKeySlot: Identifiable {
         GeminiKeySlot(slot: 1, account: "gemini", title: "API Key 1 (Utama)"),
         GeminiKeySlot(slot: 2, account: "gemini-2", title: "API Key 2"),
         GeminiKeySlot(slot: 3, account: "gemini-3", title: "API Key 3"),
+        GeminiKeySlot(slot: 4, account: "gemini-4", title: "API Key 4"),
     ]
 
     static func account(for slot: Int) -> String {
