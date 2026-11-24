@@ -73,7 +73,7 @@ enum HotkeyMode: String, CaseIterable, Identifiable {
     }
 }
 
-/// Identifies each of the 4 Gemini API key slots stored locally.
+/// Identifies each of the 5 Gemini API key slots stored locally.
 /// Slot 1 keeps the original `"gemini"` account name so existing saved keys continue working seamlessly.
 struct GeminiKeySlot: Identifiable {
     let slot: Int
@@ -86,6 +86,7 @@ struct GeminiKeySlot: Identifiable {
         GeminiKeySlot(slot: 2, account: "gemini-2", title: "API Key 2"),
         GeminiKeySlot(slot: 3, account: "gemini-3", title: "API Key 3"),
         GeminiKeySlot(slot: 4, account: "gemini-4", title: "API Key 4"),
+        GeminiKeySlot(slot: 5, account: "gemini-5", title: "API Key 5"),
     ]
 
     static func account(for slot: Int) -> String {
