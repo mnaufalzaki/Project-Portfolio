@@ -12,7 +12,7 @@
 ![Focus: Islamic financial literacy](https://img.shields.io/badge/focus-Islamic%20financial%20literacy-1B716A)
 ![Learning: Microlearning & gamification](https://img.shields.io/badge/learning-microlearning%20%26%20gamification-41ADA6)
 
-**[📄 Presentation (PDF)](docs/Z-Sharia-Presentation.pdf) · [📝 Proposal (Word)](docs/Z-Sharia-Proposal.docx)**
+**[📄 Presentation (PDF)](docs/Z-Sharia-Presentation.pdf) · [📝 Proposal (Word)](docs/Z-Sharia-Proposal.docx) · [🎬 Teaser Video v2 (Remotion)](teaser/)**
 
 🇬🇧 English · 🇮🇩 [Bahasa Indonesia](README.id.md)
 

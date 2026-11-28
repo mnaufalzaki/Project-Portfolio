@@ -1,0 +1,35 @@
+{
+  "name": "zsharia-teaser",
+  "version": "1.0.0",
+  "description": "Z-Sharia 30s teaser (SYLS 2026) \u2014 Remotion",
+  "repository": {},
+  "license": "UNLICENSED",
+  "private": true,
+  "dependencies": {
+    "@remotion/cli": "4.0.534",
+    "@remotion/fonts": "^4.0.534",
+    "@remotion/media": "^4.0.534",
+    "@remotion/shapes": "^4.0.534",
+    "@remotion/transitions": "^4.0.534",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "remotion": "4.0.534"
+  },
+  "devDependencies": {
+    "@remotion/eslint-config-flat": "4.0.534",
+    "@types/react": "19.2.7",
+    "@types/web": "0.0.166",
+    "eslint": "9.39.5",
+    "prettier": "3.8.1",
+    "typescript": "5.9.3"
+  },
+  "scripts": {
+    "dev": "remotion studio",
+    "build": "remotion bundle",
+    "upgrade": "remotion upgrade",
+    "lint": "eslint src && tsc",
+    "render": "remotion render ZSharia-Teaser out/zsharia-teaser.mp4 --codec=h264 --crf=16 --audio-codec=aac --audio-bitrate=256k",
+    "audio": "python3 audio/make_audio.py",
+    "export:svg": "esbuild scripts/export-characters.tsx --bundle --platform=node --format=cjs --jsx=automatic --outfile=out/export-characters.cjs && node out/export-characters.cjs"
+  }
+}

@@ -18,7 +18,7 @@
 | <img src="Yaping/docs/icon.png" width="48" alt="Yaping"> | **[Yaping](Yaping/)** | Native, open-source voice dictation for macOS powered by Google Gemini 3.5 Transcribe. Press a shortcut, speak, and clean punctuated text appears wherever your cursor is. | Shipped app · v1.0.1 | Swift · AppKit |
 | <img src="ShowUp-Web/docs/icon.png" width="48" alt="ShowUp"> | **[ShowUp](ShowUp-Web/)** | A daily check-in app for four fixed habits. Hold to check in, see an 18-week consistency heatmap instead of streaks, with a personal 21:00 "devices off" countdown. Installable PWA that syncs between phone and laptop. | Shipped web app · PWA | HTML · CSS · JS · Supabase |
 | ⚡ | **[ARUS](ARUS/)** | Energy-Aware Compute Intelligence. AI-driven workload placement that predicts runtime and energy per node and recommends the most energy-efficient machine for each job. | Product concept & pitch deck | Python · FastAPI · PostgreSQL · scikit-learn |
-| <img src="Z-Sharia/docs/images/icon.png" width="48" alt="Z-Sharia cat mascot icon"> | **[Z-Sharia](Z-Sharia/)** | Gamified Islamic economics and finance learning for Muslim university students, combining short lessons, everyday cases, quizzes, and visible progress. | Product concept & UI design | Design materials |
+| <img src="Z-Sharia/docs/images/icon.png" width="48" alt="Z-Sharia cat mascot icon"> | **[Z-Sharia](Z-Sharia/)** | Gamified Islamic economics and finance learning for Muslim university students, combining short lessons, everyday cases, quizzes, and a Remotion 30s teaser video. | Product concept, UI design & Remotion teaser | Remotion · React · TypeScript · Python |
 | 📚 | **[HEBAT MCP & Agent Skill](HEBAT-UNAIR/)** | A local MCP server and reusable Agent Skill for understanding HEBAT UNAIR assignments, deadlines, submission history, and course materials. | Local prototype · macOS | Python · MCP · Agent Skills |
 
 ### [Yaping](Yaping/)
@@ -65,7 +65,7 @@ A learning app concept that helps Muslim university students understand Islamic 
 
 Created by Muhammad Naufal Zaki, Mohamad Rizal Nurochman, and Fariel Nurdiyansyah. The portfolio materials document the concept and UI design; application source code and evaluation results are not included.
 
-📖 [Read more](Z-Sharia/README.md) · 🇮🇩 [Bahasa Indonesia](Z-Sharia/README.id.md) · 📄 [Presentation (PDF)](Z-Sharia/docs/Z-Sharia-Presentation.pdf) · 📝 [Proposal (Word)](Z-Sharia/docs/Z-Sharia-Proposal.docx)
+📖 [Read more](Z-Sharia/README.md) · 🇮🇩 [Bahasa Indonesia](Z-Sharia/README.id.md) · 🎬 [Teaser Video v2 (Remotion)](Z-Sharia/teaser/) · 📄 [Presentation (PDF)](Z-Sharia/docs/Z-Sharia-Presentation.pdf) · 📝 [Proposal (Word)](Z-Sharia/docs/Z-Sharia-Proposal.docx)
 
 ### [HEBAT MCP & Agent Skill](HEBAT-UNAIR/)
 

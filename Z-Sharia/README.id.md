@@ -12,7 +12,7 @@
 ![Fokus: Literasi keuangan syariah](https://img.shields.io/badge/fokus-literasi%20keuangan%20syariah-1B716A)
 ![Pembelajaran: Materi singkat & gamifikasi](https://img.shields.io/badge/pembelajaran-materi%20singkat%20%26%20gamifikasi-41ADA6)
 
-**[📄 Presentasi (PDF)](docs/Z-Sharia-Presentation.pdf) · [📝 Proposal (Word)](docs/Z-Sharia-Proposal.docx)**
+**[📄 Presentasi (PDF)](docs/Z-Sharia-Presentation.pdf) · [📝 Proposal (Word)](docs/Z-Sharia-Proposal.docx) · [🎬 Video Teaser v2 (Remotion)](teaser/)**
 
 🇬🇧 [English](README.md) · 🇮🇩 Bahasa Indonesia
 
