@@ -15,20 +15,20 @@
 
 | | Project | Summary | Type | Stack |
 |:---:|---|---|---|---|
-| <img src="Yaping/docs/icon.png" width="48" alt="Yaping"> | **[Yaping](Yaping/)** | Free, open-source voice dictation for macOS. Press a shortcut, speak, and clean punctuated text appears wherever your cursor is. Supports Gemini, Groq and fully offline whisper.cpp. | Shipped app · v1.0 | Swift · AppKit |
+| <img src="Yaping/docs/icon.png" width="48" alt="Yaping"> | **[Yaping](Yaping/)** | Native, open-source voice dictation for macOS powered by Google Gemini 3.5 Transcribe. Press a shortcut, speak, and clean punctuated text appears wherever your cursor is. | Shipped app · v1.0.1 | Swift · AppKit |
 | <img src="ShowUp-Web/docs/icon.png" width="48" alt="ShowUp"> | **[ShowUp](ShowUp-Web/)** | A daily check-in app for four fixed habits. Hold to check in, see an 18-week consistency heatmap instead of streaks, with a personal 21:00 "devices off" countdown. Installable PWA that syncs between phone and laptop. | Shipped web app · PWA | HTML · CSS · JS · Supabase |
 | ⚡ | **[ARUS](ARUS/)** | Energy-Aware Compute Intelligence. AI-driven workload placement that predicts runtime and energy per node and recommends the most energy-efficient machine for each job. | Product concept & pitch deck | Python · FastAPI · PostgreSQL · scikit-learn |
-| <img src="Z-Sharia/docs/images/icon.png" width="48" alt="Z-Sharia cat mascot icon"> | **[Z-Sharia](Z-Sharia/)** | Gamified Islamic economics and finance learning for Muslim university students, combining short lessons, everyday cases, quizzes, and visible progress. | Product concept & UI design | — (design materials) |
+| <img src="Z-Sharia/docs/images/icon.png" width="48" alt="Z-Sharia cat mascot icon"> | **[Z-Sharia](Z-Sharia/)** | Gamified Islamic economics and finance learning for Muslim university students, combining short lessons, everyday cases, quizzes, and visible progress. | Product concept & UI design | Design materials |
 | 📚 | **[HEBAT MCP & Agent Skill](HEBAT-UNAIR/)** | A local MCP server and reusable Agent Skill for understanding HEBAT UNAIR assignments, deadlines, submission history, and course materials. | Local prototype · macOS | Python · MCP · Agent Skills |
 
 ### [Yaping](Yaping/)
 
-A lightweight menu-bar app that turns speech into ready-to-send text in any application, designed for mixed Indonesian–English speech.
+A lightweight menu-bar app that turns speech into ready-to-send text in any application, designed for mixed Indonesian-English speech.
 
-- Smart cleanup of filler words and self-corrections
-- Unlimited-length dictation, transcribed in parallel while you speak
-- Automatic engine fallback with free-tier quota tracking
-- API keys stored in the macOS Keychain
+- Single-hop smart transcription via Google Gemini 3.5 Transcribe with automatic filler-word cleanup and self-correction handling
+- Native WAV-to-M4A (AAC 32 kbps) compression on Apple Silicon for 1-2 second post-speech latency
+- Pause-aware segmentation and concurrent transcription for long recordings, preserving strict paste order
+- Multi-key Gemini failover, quota tracking, and local credential storage (`keys.json` with `0600` permissions)
 
 📖 [Read more](Yaping/README.md) · 🇮🇩 [Bahasa Indonesia](Yaping/README.id.md) · [The story behind it](Yaping/docs/JOURNEY.md)
 
@@ -78,7 +78,7 @@ Ask an AI agent about your university work and get an explanation grounded in HE
 
 The Agent Skill guides the conversation; native MCP tools call the reader that retrieves the data and files. Campus access is read-only. Native Codex reads have been tested; Claude Code integration is connected, with full model conversations still unverified.
 
-📖 [Read more](HEBAT-UNAIR/README.md) · [Installation](HEBAT-UNAIR/docs/INSTALLATION.md) · [How it works](HEBAT-UNAIR/README.md#bagaimana-komponennya-bekerja) · [Testing and limitations](HEBAT-UNAIR/docs/TESTING.md)
+📖 [Read more](HEBAT-UNAIR/README.md) · 🇮🇩 [Bahasa Indonesia](HEBAT-UNAIR/README.id.md) · [Installation](HEBAT-UNAIR/docs/INSTALLATION.md) · [Testing & limitations](HEBAT-UNAIR/docs/TESTING.md)
 
 ## Repository Structure
 

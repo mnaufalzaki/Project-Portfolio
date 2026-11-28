@@ -88,7 +88,7 @@ flowchart TB
         DC --> OV[Overlay<br/>full-screen HUD & waveform]
         TR --> QU[Quota<br/>cooldowns & 00:00 PT reset]
         CP -.->|network failure| FR[FailedRecordings<br/>local safety net for retry]
-        KS[KeyStore<br/>macOS Keychain] -.-> TR
+        KS[KeyStore<br/>local keys.json 0600] -.-> TR
         TI --> HI[HistoryStore]
     end
     TR -->|HTTPS Interactions API| GEM[Google Gemini 3.5 Transcribe]
@@ -105,7 +105,7 @@ flowchart TB
 | `Quota` | Tracks estimated daily usage, parses HTTP 429 retry delays, and resets daily windows at 00:00 Pacific Time. |
 | `TextInserter` | Inserts text at the cursor via `CGEvent` (`⌘V`) with Accessibility-aware spacing and race-free clipboard restoration. |
 | `Overlay` | Non-activating HUD panel (`screenSaver` level) with center-weighted waveform animation visible over full-screen apps. |
-| `KeyStore`, `HistoryStore`, `FailedRecordings` | macOS Keychain credential storage, searchable copyable history, and local safety net for failed recordings (up to 5 files). |
+| `KeyStore`, `HistoryStore`, `FailedRecordings` | Local owner-only credential storage (`keys.json`, `0600`), searchable copyable history, and local safety net for failed recordings (up to 5 files). |
 
 ## End-to-End Pipeline
 

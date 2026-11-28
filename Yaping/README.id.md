@@ -85,7 +85,7 @@ flowchart TB
         DC --> OV[Overlay<br/>HUD full-screen & waveform]
         TR --> QU[Quota<br/>cooldown & reset 00.00 PT]
         CP -.->|gagal jaringan| FR[FailedRecordings<br/>safety net lokal untuk retry]
-        KS[KeyStore<br/>macOS Keychain] -.-> TR
+        KS[KeyStore<br/>keys.json lokal 0600] -.-> TR
         TI --> HI[HistoryStore]
     end
     TR -->|HTTPS Interactions API| GEM[Google Gemini 3.5 Transcribe]
@@ -102,7 +102,7 @@ flowchart TB
 | `Quota` | Memantau estimasi pemakaian harian, membaca durasi tunggu dari respons HTTP 429, dan menyinkronkan reset harian pada 00.00 Pacific Time. |
 | `TextInserter` | Menyisipkan teks di kursor lewat `CGEvent` (`⌘V`) dengan spasi otomatis berbasis Accessibility dan pemulihan clipboard asli yang aman dari *race condition*. |
 | `Overlay` | Panel HUD non-activating (`screenSaver` level) dengan animasi waveform simetris yang tetap muncul di atas aplikasi full-screen. |
-| `KeyStore`, `HistoryStore`, `FailedRecordings` | Penyimpanan kredensial di Keychain macOS, riwayat dikte dengan salin cepat, dan cadangan sementara audio gagal (maksimal 5 file). |
+| `KeyStore`, `HistoryStore`, `FailedRecordings` | Penyimpanan kredensial lokal khusus pemilik (`keys.json`, `0600`), riwayat dikte dengan salin cepat, dan cadangan sementara audio gagal (maksimal 5 file). |
 
 ## Alur Kerja End-to-End
 

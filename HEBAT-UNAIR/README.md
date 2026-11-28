@@ -1,130 +1,139 @@
+<div align="center">
+
 # HEBAT MCP & Agent Skill
 
-Hubungkan agent AI dengan HEBAT UNAIR untuk memahami tugas, menentukan prioritas tenggat, menelusuri riwayat pengumpulan, dan membaca materi kuliah lewat percakapan.
+**Connect AI agents to HEBAT UNAIR for deadline prioritization, assignment breakdown, submission history, and course material reading via conversation.**
 
-Proyek ini memadukan **MCP lokal** untuk mengakses informasi kampus dan **Agent Skill** untuk memandu cara agent membaca serta menjelaskan hasilnya. Instruksi tugas dan dokumen sumber diperiksa sebelum diringkas; kredensial dan sesi login tetap tersimpan di **macOS Keychain**.
+Read-only local MCP server paired with a reusable Agent Skill, keeping campus credentials and sessions securely in macOS Keychain.
 
-**macOS · Python 3.11+ · MCP stdio · Codex dan integrasi Claude Code · Akses HEBAT baca saja**
+![macOS](https://img.shields.io/badge/macOS-local%20runtime-000000?logo=apple&logoColor=white)
+![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)
+![MCP stdio](https://img.shields.io/badge/MCP-stdio-5A4FCF)
+![Access: Read-Only](https://img.shields.io/badge/HEBAT%20Access-Read--Only-2E7D32)
+![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)
 
-[Pemasangan](docs/INSTALLATION.md) · [Cara kerja](docs/ARCHITECTURE.md) · [Pengujian](docs/TESTING.md) · [Asal proyek](docs/UPSTREAM.md)
+**[Installation Guide](docs/INSTALLATION.md)** · [Architecture](docs/ARCHITECTURE.md) · [Testing & Distribution](docs/TESTING.md) · [Upstream Attribution](docs/UPSTREAM.md)
 
-## Mulai dari pertanyaanmu
+🇬🇧 English · 🇮🇩 [Bahasa Indonesia](README.id.md)
 
-Setelah MCP dan skill dipasang, kamu bisa meminta:
+</div>
 
-- **Prioritas:** “Cari tugas yang deadline-nya paling dekat sekarang.”
-- **Penjelasan tugas:** “Dalami tugas ini: ketentuannya apa, apa yang perlu disiapkan, dan bagaimana pengumpulannya?”
-- **Riwayat:** “Tugas apa saja yang sudah kukumpulkan seminggu terakhir?”
-- **Materi:** “Baca PDF terbaru KBSI, jelaskan ada tugas atau instruksi pengumpulan nggak, dan langsung kasih PDF-nya.”
-- **Tindak lanjut:** “Slide 5 maksudnya apa?” atau “Buka materi sebelum yang tadi.”
+---
 
-Jawaban tugas diarahkan untuk memuat ketentuan dosen, deadline, format berkas, aturan pengunggah, status akun, dan tautan sumber. Saat diminta mendalami, agent menjelaskan arti praktis persyaratan serta membedakan **kewajiban dosen, interpretasi, dan saran**. Ketentuan yang tidak tercantum tidak diisi dengan tebakan.
+## Overview
 
-Untuk materi, berkas asli diambil dan dibaca sebelum diringkas. Tautan lokal langsung disertakan agar pengguna bisa membuka dokumen yang sama. Pertanyaan lanjutan dapat memakai berkas atau hasil pembacaan yang sudah tersedia.
+HEBAT MCP & Agent Skill bridges AI coding/chat agents with **HEBAT UNAIR** (Universitas Airlangga's Moodle-based LMS). Instead of manually clicking through multiple course pages to track deadlines, verify submission rules, or hunt for the latest lecture PDF, you ask your agent in plain language and get grounded answers with direct links to source files.
 
-## Kemampuan yang tersedia
+The project combines two layers:
+1. **Local MCP Server (`runtime/`):** Executes read-only authenticated requests against HEBAT, manages local caches, and downloads course files.
+2. **Agent Skill (`skills/hebat-unair/`):** Guides the agent on which MCP tool to call, requires reading actual instructions/PDFs before summarizing, and enforces a clear distinction between lecturer requirements, interpretations, and suggestions.
 
-| Kebutuhan | Hasil | Tool MCP |
+## Example Prompts
+
+Once the MCP server and skill are installed, you can ask:
+
+- **Prioritization:** *"Find the assignments with the closest upcoming deadlines right now."*
+- **Deep assignment breakdown:** *"Inspect this assignment: what are the exact requirements, file format, and submission rules?"*
+- **Submission history:** *"Which assignments have I submitted in the past week?"*
+- **Course materials:** *"Read the latest KBSI PDF, check whether there is a hidden task or submission rule, and give me the file link."*
+- **Follow-up questions:** *"What does slide 5 mean?"* or *"Open the material right before the last one."*
+
+## Capabilities & MCP Tools
+
+| Use Case | Output | MCP Tool |
 |---|---|---|
-| Menentukan prioritas | Urutan tenggat, status, serta tugas terlambat yang dipisahkan | `hebat_priority` |
-| Memahami satu tugas | Instruksi, deadline, status, aturan pengumpulan, dan tautan lampiran | `hebat_assignment_detail` |
-| Melihat riwayat | Tugas berstatus terkumpul berdasarkan waktu perubahan terakhir | `hebat_submission_history` |
-| Membaca materi kelas | Penemuan Resource, unduhan berkas, dan path lokal terverifikasi | `hebat_material` |
-| Menemukan kelas/aktivitas | Daftar kelas dan tautan aktivitas | `hebat_courses`, `hebat_assignments` |
-| Memeriksa akses | Ringkasan dashboard serta status sesi/build | `hebat_dashboard`, `hebat_status` |
+| **Deadline prioritization** | Sorted upcoming deadlines, submission status, and separated overdue tasks | `hebat_priority` |
+| **Assignment inspection** | Lecturer instructions, due dates, file/uploader rules, account status, and attachments | `hebat_assignment_detail` |
+| **Submission history** | Submitted assignments ordered by last modified timestamp | `hebat_submission_history` |
+| **Course materials** | Resource discovery, file download, and verified local file paths | `hebat_material` |
+| **Course & activity lookup** | Enrolled course list and activity links | `hebat_courses`, `hebat_assignments` |
+| **Session diagnostics** | Dashboard overview, auth session state, and build status | `hebat_dashboard`, `hebat_status` |
 
-Nama atau singkatan seperti **KBSI, ISIT, AVD, PAP, dan PPL** dicocokkan dengan kelas pada akun pengguna. Kelas teori, praktikum, dan paralel dibedakan. Jika hasil masih ambigu, agent perlu memperjelas kelasnya.
+Course abbreviations such as **KBSI, ISIT, AVD, PAP, and PPL** are matched against the user's enrolled courses, distinguishing theory, lab (*praktikum*), and parallel classes. If a query remains ambiguous, the agent asks for clarification rather than guessing.
 
-## Bagaimana komponennya bekerja
+## System Architecture
 
-Agent mengikuti skill untuk memilih tool MCP yang sesuai dengan pertanyaanmu. Tool tersebut menjalankan reader untuk membaca HEBAT atau menggunakan cache yang masih layak. Reader mengembalikan data dan berkas asli; agent kemudian membaca isinya dan menyusun penjelasan beserta tautan sumber.
+The agent follows the skill to choose the right MCP tool. The tool invokes the Python reader, which checks valid local caches or fetches live read-only data from HEBAT using sessions stored in macOS Keychain. The reader returns structured data and local file paths, which the agent inspects directly before replying.
 
-![Alur HEBAT: pertanyaan, agent dan skill, MCP dan reader, lalu penjelasan. Keychain, cache, dan HEBAT mendukung reader.](docs/assets/how-hebat-works.svg)
+![HEBAT workflow: user prompt, agent and skill, MCP and reader, then grounded explanation supported by Keychain, cache, and HEBAT.](docs/assets/how-hebat-works.svg)
 
-[Buka diagram ukuran penuh](docs/assets/how-hebat-works.svg).
+[Open full-size diagram](docs/assets/how-hebat-works.svg)
 
-- **Skill** memandu agent: operasi mana yang dipilih, apa yang perlu dibaca, dan bagaimana menjelaskan hasilnya.
-- **MCP native** adalah jalur pemanggilan tool langsung dari aplikasi agent. **Reader** menjalankan pembacaan kelas, tugas, status, serta berkas materi.
-- **Auth dan Keychain** menangani autentikasi; kredensial dan sesi tetap disimpan di Mac.
-- **Cache dan berkas lokal** mengurangi pembacaan berulang. Berkas diperiksa sebelum dipakai ulang; `fresh` digunakan ketika sumber perlu diperbarui.
-- **Helper Python** menyediakan jalur CLI ketika operasi native tidak tersedia atau belum mencukupi. Keduanya menggunakan logika reader yang sama.
+| Component | Responsibility |
+|---|---|
+| **Agent Skill** | Guides tool selection, enforces source verification before summarizing, and structures responses. |
+| **Native MCP Server** | Exposes structured read-only tools over `stdio` directly to Codex or Claude Code. |
+| **Reader** | Parses courses, assignments, submission states, and downloads course resources. |
+| **Auth & Keychain** | Handles SSO authentication and stores NIM/password plus session cookies inside macOS Keychain. |
+| **Cache & Local Files** | Minimizes redundant LMS calls and reuses verified local PDFs for follow-up questions (`fresh` forces re-fetch). |
+| **Python Helper** | Provides a CLI fallback path using the exact same reader logic when native MCP calls are unavailable. |
 
-Contohnya, saat kamu meminta **“Baca PDF terbaru KBSI”**, agent memanggil `hebat_material`, reader menemukan dan menyediakan PDF, lalu agent membaca dokumen sebelum menjelaskan isinya dan memberikan tautan lokal. Saat kamu melanjutkan **“Slide 5 maksudnya apa?”**, berkas yang sudah tersedia dapat dipakai kembali.
+A single runtime can serve both Codex and Claude Code via separate MCP processes. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for component-level details.
 
-Satu runtime dapat digunakan oleh Codex dan Claude Code, dengan proses MCP masing-masing. Lihat [arsitektur teknis](docs/ARCHITECTURE.md) untuk rincian komponennya.
+## Installation (macOS)
 
-## Pemasangan di Mac
+**Requirements:**
+- **Python 3.11+** on macOS
+- Your own **HEBAT UNAIR** student account
+- **Codex** or **Claude Code** with local MCP support (this project does not supply paid LLM API access)
 
-Yang diperlukan:
-
-- Python **3.11+** pada macOS.
-- Akun HEBAT UNAIR milik pengguna sendiri.
-- Codex atau Claude Code dengan dukungan MCP lokal dan akses model yang sesuai. Pemasangan proyek ini tidak memberikan akses model berbayar.
-
-Dari direktori `HEBAT-UNAIR`, siapkan lingkungan Python:
+From the `HEBAT-UNAIR/` directory, set up the virtual environment:
 
 ```bash
 python3 -m venv runtime/.venv
 runtime/.venv/bin/python -m pip install -r runtime/requirements.txt
 ```
 
-Lanjutkan [panduan pemasangan](docs/INSTALLATION.md) untuk:
+Follow [docs/INSTALLATION.md](docs/INSTALLATION.md) to complete setup:
 
-1. Memasang skill pada aplikasi yang dipakai.
-2. Mengikat lokasi Python dan server pada penunjuk runtime lokal.
-3. Mendaftarkan MCP `hebat`.
-4. Mengatur akun sendiri melalui Terminal dan memverifikasi koneksi.
+1. Install the Agent Skill into your target client.
+2. Bind the Python and MCP server paths to your local runtime pointer.
+3. Register the `hebat` MCP server.
+4. Sign in locally via Terminal (stored in macOS Keychain) and verify the connection.
 
-Pemasangan saat ini dilakukan melalui langkah eksplisit. Lokasi instalasi ditentukan pengguna; contoh konfigurasi tidak memerlukan path Mac pengembang.
+## Testing Status & Support Boundaries
 
-## Status pengujian dan batas dukungan
-
-| Bagian | Status |
+| Area | Status |
 |---|---|
-| Reader / server | **2.3.2 / 0.4.2** |
-| Native Codex | Pembacaan akun nyata diuji pada lingkungan pengembangan |
-| Claude Code | Skill dikenali dan MCP terhubung; operasi protocol MCP serta file bersama diuji. **Percakapan penuh dengan model Claude belum terverifikasi** |
-| Pemasangan pada Mac lain | Belum diverifikasi |
-| Windows, Claude web, Claude Desktop | Belum termasuk pemasangan yang diuji pada proyek ini |
+| Reader / MCP Server version | **2.3.2 / 0.4.2** |
+| Native Codex | Verified with real account reads in the development environment |
+| Claude Code | Skill recognized, MCP connected, protocol and shared files tested; **full end-to-end Claude model conversations remain unverified** |
+| Installation on another Mac | Not yet verified |
+| Windows, Claude Web, Claude Desktop | Outside currently tested targets |
 
-Hal yang perlu dipahami saat membaca hasil:
+### Known Limitations
 
-- Prioritas mencakup **aktivitas Assignment yang ditemukan**. Kuis, forum, aktivitas tersembunyi, dan tugas di luar HEBAT dapat tidak tercakup. Hasil yang parsial tetap diberi keterangan.
-- Status akun sendiri belum membuktikan status kelompok jika pengumpulan cukup dilakukan oleh perwakilan. “Belum dinilai” juga berbeda dari “belum dikumpulkan”.
-- Riwayat memakai waktu perubahan terakhir, bukan log seluruh versi pengumpulan.
-- Materi “terakhir” mengikuti urutan bagian/pertemuan dan aktivitas yang tersedia, bukan tanggal unggah yang belum diketahui.
-- File lokal yang utuh belum membuktikan isi di URL sumber tidak berubah. Gunakan pembaruan sumber saat diperlukan.
-- Struktur HTML atau SSO HEBAT dapat berubah. Tes fixture tidak membuktikan seluruh kelas dan akun selalu kompatibel.
+- **Assignment scope:** Priority tracking covers detected Moodle **Assignment** activities. Quizzes, forums, hidden activities, and off-LMS tasks may not appear (partial coverage is explicitly flagged).
+- **Group submissions:** Individual account status does not prove group submission status when a teammate submits on behalf of the group. *"Not graded"* is also distinguished from *"Not submitted"*.
+- **History timestamps:** Submission history uses last-modified timestamps rather than full revision logs.
+- **Latest material heuristic:** *"Latest"* follows course section/activity order rather than unavailable upload dates.
+- **Upstream HTML/SSO changes:** Changes in HEBAT markup or SSO flow can affect parsers; fixture tests do not guarantee coverage for every course layout.
 
-## Privasi dan batas akses
+## Privacy & Security
 
-Seluruh operasi kampus bersifat **baca saja**. POST hanya digunakan untuk autentikasi. Tidak tersedia operasi unggah tugas, kirim pesan, ubah profil, atau hapus data kampus.
+- **Strictly read-only:** `POST` requests are used exclusively for authentication. There are no tools to upload assignments, send messages, edit profiles, or delete campus data.
+- **Local credential storage:** NIM and password are entered locally in Terminal and stored in **macOS Keychain**. Never paste credentials into chat. Note that retrieved HEBAT content is sent to your configured AI client to generate answers.
+- **Clean separation:** User data (cookies, `.session`, `.cache`, local runtime pointers, downloaded materials, and personal agent configs) must never be committed or shared.
 
-NIM/password diisi sendiri oleh pengguna di Terminal dan disimpan di Keychain bersama sesi. Jangan mengirim kredensial melalui chat. Hasil pembacaan HEBAT diteruskan ke aplikasi agent yang digunakan untuk menyusun jawaban; penyimpanan kredensial lokal tidak berarti percakapan AI berjalan seluruhnya di Mac.
-
-Sumber proyek dipisahkan dari data pengguna. Jangan commit atau membagikan cookie, `.session`, `.cache`, penunjuk runtime lokal, unduhan materi, keluaran akun, atau konfigurasi pribadi aplikasi agent.
-
-## Struktur proyek
+## Project Structure
 
 ```text
 HEBAT-UNAIR/
 ├── runtime/
-│   ├── hebat_mcp/            # reader, server MCP, auth, login, dan tes
+│   ├── hebat_mcp/            # Reader, MCP stdio server, auth, login CLI, and tests
 │   ├── requirements.txt
-│   └── tools/                # builder distribusi dan tesnya
+│   └── tools/                # Distribution builder and verification tests
 ├── skills/
-│   └── hebat-unair/          # SKILL.md, helper, referensi, dan tes
-├── docs/                     # pemasangan, arsitektur, pengujian, dan asal proyek
+│   └── hebat-unair/          # SKILL.md, Python helper, references, and tests
+├── docs/                     # Installation, architecture, testing, and upstream notes
 ├── LICENSE
 └── NOTICE.md
 ```
 
-Reader pada runtime adalah sumber utama. Builder menyinkronkan salinannya pada skill dan memeriksa kesamaan hash. Paket distribusi dibuat dari daftar berkas sumber eksplisit dan dilengkapi manifest.
+The reader inside `runtime/` is the single source of truth; the distribution builder syncs the skill copy and verifies hash parity. See [docs/TESTING.md](docs/TESTING.md) for running tests and building distribution packages.
 
-Lihat [pengujian dan distribusi](docs/TESTING.md) untuk menjalankan tes atau membuat paket.
+## License & Upstream Attribution
 
-## Lisensi dan sumber awal
+Developed from **[Arroyan23/MCP-Kampus](https://github.com/Arroyan23/MCP-Kampus)** (discovered via **[Glama](https://glama.ai/mcp/servers/Arroyan23/MCP-Kampus)**). The upstream project provided read-only HEBAT MCP access; this project extends it with a structured reader, macOS Keychain storage, caching, submission history, material downloading, a Python helper, and an Agent Skill.
 
-Proyek ini dikembangkan dari **[Arroyan23/MCP-Kampus](https://github.com/Arroyan23/MCP-Kampus)**, yang ditemukan melalui **[Glama](https://glama.ai/mcp/servers/Arroyan23/MCP-Kampus)**. Sumber awal menyediakan MCP HEBAT baca saja; pengembangan lanjutan menambahkan reader terstruktur, Keychain, cache, riwayat, pembacaan materi, helper, dan skill.
-
-MIT. README proyek awal menyatakan lisensi MIT. Atribusi dan snapshot asal dicatat di [NOTICE.md](NOTICE.md) dan [asal proyek](docs/UPSTREAM.md).
+Licensed under the **MIT License**. Attribution and upstream snapshot details are recorded in [NOTICE.md](NOTICE.md) and [docs/UPSTREAM.md](docs/UPSTREAM.md).
